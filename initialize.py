@@ -1,6 +1,8 @@
 import os
 import json
 from neo4j import GraphDatabase
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 # Set up local Neo4J
 NEO4J_URI = "bolt://localhost:7687"
@@ -11,22 +13,20 @@ data_f = "./data"  # data directory
 # Initialize driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
-
 def process_json_file(file_path):
     with open(file_path, 'r') as file:
         print("opened file")
+        tweets = [json.loads(line) for line in file]
         with driver.session() as session:
-            for line in file:
-                tweet = json.loads(line)
-                if 'id' in tweet and 'user' in tweet:
-                    session.execute_write(create_tweet, tweet)
-                    print ("creating tweet")
-                    session.execute_write(create_user, tweet['user'])
-                    print("creating user ")
-                    session.execute_write(create_relationship, tweet['id'], tweet['user']['id'])
-                    print("made relation")
+            session.execute_write(batch_create, tweets)
     print(f"Processed {file_path}")
 
+def batch_create(tx, tweets):
+    for tweet in tweets:
+        if 'id' in tweet and 'user' in tweet:
+            create_tweet(tx, tweet)
+            create_user(tx, tweet['user'])
+            create_relationship(tx, tweet['id'], tweet['user']['id'])
 
 def create_tweet(tx, tweet):
     query = """
@@ -40,7 +40,6 @@ def create_user(tx, user):
     """
     tx.run(query, id=user['id'], name=user['name'], screen_name=user['screen_name'], location=user['location'])
 
-#redesign
 def create_relationship(tx, tweet_id, user_id):
     query = """
     MATCH (t:Tweet {id: $tweet_id})
@@ -49,9 +48,8 @@ def create_relationship(tx, tweet_id, user_id):
     """
     tx.run(query, tweet_id=tweet_id, user_id=user_id)
 
-
-# Process
-single_file_path = "./data/airlines-1558527599826.json"
-process_json_file(single_file_path)
-
-print("database created.")
+# Process files in parallel
+data_folder = Path("./data")
+json_files = list(data_folder.glob('*.json'))
+with ThreadPoolExecutor() as executor:
+    executor.map(process_json_file, json_files)
