@@ -1,55 +1,87 @@
-import os
-import json
 from neo4j import GraphDatabase
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+import time
 
 # Set up local Neo4J
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
-data_f = "./data"  # data directory
 
 # Initialize driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
-def process_json_file(file_path):
-    with open(file_path, 'r') as file:
-        print("opened file")
-        tweets = [json.loads(line) for line in file]
-        with driver.session() as session:
-            session.execute_write(batch_create, tweets)
-    print(f"Processed {file_path}")
-
-def batch_create(tx, tweets):
-    for tweet in tweets:
-        if 'id' in tweet and 'user' in tweet:
-            create_tweet(tx, tweet)
-            create_user(tx, tweet['user'])
-            create_relationship(tx, tweet['id'], tweet['user']['id'])
-
-def create_tweet(tx, tweet):
+# Cypher queries for batch insertions using APOC
+def import_users():
     query = """
-    CREATE (t:Tweet {id: $id, created_at: $created_at, text: $text, source: $source})
+    CALL apoc.periodic.iterate(
+        'LOAD CSV WITH HEADERS FROM "file:///users.csv" AS row RETURN row',
+        'CREATE (u:User {userId: row.`userId:ID(User)`, name: row.name, screen_name: row.screen_name})',
+        {batchSize: 1000, parallel: true}
+    )
+    YIELD batches, total, errorMessages
+    RETURN batches, total, errorMessages
     """
-    tx.run(query, id=tweet['id'], created_at=tweet['created_at'], text=tweet['text'], source=tweet['source'])
+    with driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
+        print("Users import complete.")
 
-def create_user(tx, user):
+def import_tweets():
     query = """
-    CREATE (u:User {id: $id, name: $name, screen_name: $screen_name, location: $location})
+    CALL apoc.load.csv('file:///tweets.csv', {skip: 0, separator: ','}) YIELD map AS row
+    CREATE (t:Tweet {tweetId: row.tweetId, content: row.content, createdAt: row.createdAt})
     """
-    tx.run(query, id=user['id'], name=user['name'], screen_name=user['screen_name'], location=user['location'])
+    with driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            print(f"Inserted Tweet: {record['tweetId']}")
+        print("Tweets import complete.")
 
-def create_relationship(tx, tweet_id, user_id):
+def import_posted():
     query = """
-    MATCH (t:Tweet {id: $tweet_id})
-    MATCH (u:User {id: $user_id})
-    CREATE (u)-[:POSTED]->(t)
+    CALL apoc.periodic.iterate(
+        'LOAD CSV WITH HEADERS FROM "file:///posted.csv" AS row RETURN row',
+        'MATCH (u:User {userId: row.`:START_ID(User)`}) MATCH (t:Tweet {tweetId: row.`:END_ID(Tweet)`}) CREATE (u)-[:POSTED]->(t)',
+        {batchSize: 1000, parallel: true}
+    )
+    YIELD batches, total, errorMessages
+    RETURN batches, total, errorMessages
     """
-    tx.run(query, tweet_id=tweet_id, user_id=user_id)
+    with driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
+        print("POSTED relationships import complete.")
 
-# Process files in parallel
-data_folder = Path("./data")
-json_files = list(data_folder.glob('*.json'))
-with ThreadPoolExecutor() as executor:
-    executor.map(process_json_file, json_files)
+def import_mentions():
+    query = """
+    CALL apoc.periodic.iterate(
+        'LOAD CSV WITH HEADERS FROM "file:///mentions.csv" AS row RETURN row',
+        'MATCH (t:Tweet {tweetId: row.`:START_ID(Tweet)`}) MATCH (u:User {screen_name: row.`:END_ID(User)`}) CREATE (t)-[:MENTIONED]->(u)',
+        {batchSize: 1000, parallel: true}
+    )
+    YIELD batches, total, errorMessages
+    RETURN batches, total, errorMessages
+    """
+    with driver.session() as session:
+        result = session.run(query)
+        for record in result:
+            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
+        print("MENTIONED relationships import complete.")
+
+# Main function to run all imports
+def run_inserts():
+    start_time = time.time()
+
+    import_users()
+    import_tweets()
+    import_posted()
+    import_mentions()
+
+    print(f"All insertions completed in {time.time() - start_time} seconds.")
+
+# Run the insertions
+run_inserts()
+
+# Close the connection
+driver.close()
