@@ -7,7 +7,7 @@ NEO4J_PASSWORD = "password"
 # Initialize driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
-# Cypher query for batch deletion
+# Cypher query for batch deletion - so its done over time
 DELETE_QUERY = """
 CALL apoc.periodic.iterate(
   'MATCH (n) RETURN n LIMIT 100000',  // Fetches nodes in batches of 1000
@@ -22,8 +22,7 @@ RETURN batches, total, errorMessages
 def get_remaining_nodes(session):
     result = session.run("MATCH (n) RETURN count(n) AS remaining_nodes")
     return result.single()['remaining_nodes']
-
-# Function to clear database using batch deletion until empty
+y
 def clear_database():
     with driver.session() as session:
         remaining_nodes = get_remaining_nodes(session)
@@ -33,20 +32,17 @@ def clear_database():
             print(f"Deleting nodes, {remaining_nodes} remaining...")
             result = session.run(DELETE_QUERY)
             
-            # Get feedback on the batch deletion
             for record in result:
                 print(f"Batches processed: {record['batches']}, Total nodes deleted: {record['total']}")
                 if record['errorMessages']:
                     print(f"Error messages: {record['errorMessages']}")
             
-            # Check remaining nodes after deletion
             remaining_nodes = get_remaining_nodes(session)
             print(f"Remaining nodes: {remaining_nodes}")
         
         print("Database cleared successfully.")
 
-# Run the deletion process
 clear_database()
 
-# Close the connection
+# Close connection
 driver.close()

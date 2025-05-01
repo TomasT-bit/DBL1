@@ -5,7 +5,7 @@ Install neo4j desktop
 2. Running python to_csv.py selects the relations and entities to be moddeled in neo4j and puts it in created folder "cvs"
 3. Have running Neo4j dbms with password "password"
 4. make sure to pip install neo4j
-5. in config file of neo4j change dbms.memory.transaction.total.max=1G
+5. in config file of neo4j change according to below
 6. move the cvs files to import/ in neo4j
 7. use "   powershell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\bin\neo4j-admin.ps1" `
 database import full neo4j `
