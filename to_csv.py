@@ -10,38 +10,33 @@ DATA_DIR = "data"
 OUTPUT_DIR = "import"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Initialize sets for unique user and tweet IDs
+#Unique ids
 user_ids = set()
 tweet_ids = set()
 screen_name_to_id = {}
 
-# Open CSV files for writing data
 users_file = open(os.path.join(OUTPUT_DIR, "users.csv"), "w", newline='', encoding="utf-8")
 tweets_file = open(os.path.join(OUTPUT_DIR, "tweets.csv"), "w", newline='', encoding="utf-8")
 posted_file = open(os.path.join(OUTPUT_DIR, "posted.csv"), "w", newline='', encoding="utf-8")
 mentions_file = open(os.path.join(OUTPUT_DIR, "mentions.csv"), "w", newline='', encoding="utf-8")
 
-# Initialize CSV writers
 users_writer = csv.writer(users_file)
 tweets_writer = csv.writer(tweets_file)
 posted_writer = csv.writer(posted_file)
 mentions_writer = csv.writer(mentions_file)
 
-# Write headers to the CSV files
 users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name"])  # Add label column for Users
 tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at"])  # Add label column for Tweets
-posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])  # No label needed for relationships
-mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])  # No label needed for relationships
+posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])  # No label
+mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])  # No label
 
-# Function to extract mentions from tweet text
 def extract_mentions(text):
     return re.findall(r"@(\w+)", text)
 
-# Function to safely format large IDs as strings to avoid scientific notation
+#Solving issue with scietnific id 
 def format_id(id_value):
-    return str(id_value)  # Convert ID to string without adding quotes
+    return str(id_value) 
 
-# Process a single JSON file
 def process_file(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -49,28 +44,24 @@ def process_file(file_path):
                 tweet = json.loads(line)
                 user = tweet.get("user", {})
                 
-                # Skip if tweet ID or user ID is missing
+                # Skip if tweet ID or user ID is missing - should be done differently 
                 if not tweet.get("id") or not user.get("id"):
                     continue
 
                 uid = format_id(user["id"])
                 tid = format_id(tweet["id"])
 
-                # Handle users - add user info only if not already added
                 if uid not in user_ids:
-                    users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", "")])  # Add label for User node
+                    users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", "")]) 
                     user_ids.add(uid)
                     screen_name_to_id[user.get("screen_name", "")] = uid
 
-                # Handle tweets - add tweet info only if not already added
                 if tid not in tweet_ids:
-                    tweets_writer.writerow(["Tweet", tid, tweet.get("text", ""), tweet.get("created_at", "")])  # Add label for Tweet node
+                    tweets_writer.writerow(["Tweet", tid, tweet.get("text", ""), tweet.get("created_at", "")]) 
                     tweet_ids.add(tid)
 
-                # Record the "posted" relationship between users and tweets
                 posted_writer.writerow([uid, tid, "POSTED"])
 
-                # Extract mentions from the tweet text and record them
                 mentions = extract_mentions(tweet.get("text", ""))
                 for mentioned_screen_name in mentions:
                     mentioned_user_id = screen_name_to_id.get(mentioned_screen_name)
@@ -79,16 +70,15 @@ def process_file(file_path):
             except Exception as e:
                 logging.warning(f"Error processing line in {file_path}: {e}")
 
-# Main function to process all files
 def process():
     files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
     for fpath in tqdm(files, desc="Processing files"):
         process_file(fpath)
 
-# Main script execution
+
 if __name__ == "__main__":
     process()
-    # Close all files after processing
+    # Close all files
     users_file.close()
     tweets_file.close()
     posted_file.close()
