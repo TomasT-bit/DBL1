@@ -1,98 +1,91 @@
 import os
 import json
 from neo4j import GraphDatabase
+from concurrent.futures import ThreadPoolExecutor
 
-# Set up local Neo4J
+# === Configuration ===
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "Panterz07"
-data_f = r"C:\Users\o0dan\OneDrive\Desktop\DBL data challanges\DBL1\data"  # Modify this path
-BATCH_SIZE = 10  # Number of files per batch
+DATA_DIR = r"C:\Users\o0dan\OneDrive\Desktop\DBL data challanges\DBL1\data"
+BATCH_SIZE = 1500         # Number of tweets per batch
+CHUNK_SIZE = 20           # Number of files per thread chunk
+MAX_WORKERS = 4           # Parallel threads (adjust up to 8 on Ryzen 7 if stable)
 
-# Initialize driver
+# === Neo4j Driver ===
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
+# === Cypher Queries ===
+def create_tweet_batch(tx, tweets):
+    tx.run("""
+        UNWIND $tweets AS tweet
+        MERGE (t:Tweet {id: tweet.id})
+        ON CREATE SET t.created_at = tweet.created_at, t.text = tweet.text, t.source = tweet.source
+    """, tweets=tweets)
+
+def create_user_batch(tx, users):
+    tx.run("""
+        UNWIND $users AS user
+        MERGE (u:User {id: user.id})
+        ON CREATE SET u.name = user.name, u.screen_name = user.screen_name, u.location = user.location
+    """, users=users)
+
+def create_relationship_batch(tx, relationships):
+    tx.run("""
+        UNWIND $relationships AS rel
+        MATCH (t:Tweet {id: rel[0]})
+        MATCH (u:User {id: rel[1]})
+        MERGE (u)-[:POSTED]->(t)
+    """, relationships=relationships)
+
+# === File Processor ===
 def process_json_file(file_path, session):
+    print(f"📥 Opening: {file_path}")
+    tweets, users, relationships = [], [], []
+
     with open(file_path, 'r', encoding='utf-8') as file:
-        print(f"📥 Opened file: {file_path}")
-        batch_tweets = []
-        batch_users = []
-        batch_relationships = []
-        
         for line in file:
             try:
                 tweet = json.loads(line)
                 if 'id' in tweet and 'user' in tweet:
-                    # Collect tweets, users, and relationships for batch processing
-                    batch_tweets.append(tweet)
-                    batch_users.append(tweet['user'])
-                    batch_relationships.append((tweet['id'], tweet['user']['id']))
-                    
-                    # Process batch when it reaches the specified size
-                    if len(batch_tweets) >= 1500:  # 100 tweets per batch for example
-                        session.execute_write(create_tweet_batch, batch_tweets)
-                        session.execute_write(create_user_batch, batch_users)
-                        session.execute_write(create_relationship_batch, batch_relationships)
-                        print(f"✅ Processed batch of {len(batch_tweets)} tweets")
-                        batch_tweets.clear()  # Reset for the next batch
-                        batch_users.clear()
-                        batch_relationships.clear()
-            
+                    tweets.append(tweet)
+                    users.append(tweet['user'])
+                    relationships.append((tweet['id'], tweet['user']['id']))
+
+                    if len(tweets) >= BATCH_SIZE:
+                        session.execute_write(create_tweet_batch, tweets)
+                        session.execute_write(create_user_batch, users)
+                        session.execute_write(create_relationship_batch, relationships)
+                        print(f"✅ Wrote batch of {len(tweets)} tweets from {file_path}")
+                        tweets.clear(); users.clear(); relationships.clear()
             except json.JSONDecodeError as e:
-                print(f"❌ Error decoding line in {file_path}: {e}")
+                print(f"❌ JSON error in {file_path}: {e}")
                 continue
-        
-        # Process any remaining tweets in the last batch
-        if batch_tweets:
-            session.execute_write(create_tweet_batch, batch_tweets)
-            session.execute_write(create_user_batch, batch_users)
-            session.execute_write(create_relationship_batch, batch_relationships)
-            print(f"✅ Processed final batch of {len(batch_tweets)} tweets")
 
-    print(f"✅ Processed {file_path}")
+    if tweets:
+        session.execute_write(create_tweet_batch, tweets)
+        session.execute_write(create_user_batch, users)
+        session.execute_write(create_relationship_batch, relationships)
+        print(f"✅ Final batch of {len(tweets)} tweets from {file_path}")
 
-def create_tweet_batch(tx, tweets):
-    query = """
-    UNWIND $tweets AS tweet
-    CREATE (t:Tweet {id: tweet.id, created_at: tweet.created_at, text: tweet.text, source: tweet.source})
-    """
-    tx.run(query, tweets=tweets)
+# === Chunk Processor ===
+def process_file_chunk(file_chunk):
+    with driver.session() as session:
+        for file_path in file_chunk:
+            process_json_file(file_path, session)
 
-def create_user_batch(tx, users):
-    query = """
-    UNWIND $users AS user
-    CREATE (u:User {id: user.id, name: user.name, screen_name: user.screen_name, location: user.location})
-    """
-    tx.run(query, users=users)
-
-def create_relationship_batch(tx, relationships):
-    query = """
-    UNWIND $relationships AS relationship
-    MATCH (t:Tweet {id: relationship[0]})
-    MATCH (u:User {id: relationship[1]})
-    CREATE (u)-[:POSTED]->(t)
-    """
-    tx.run(query, relationships=relationships)
-
-# Process all JSON files in the directory in batches
-def process_all_files_in_batches():
-    all_files = [f for f in os.listdir(data_f) if f.endswith(".json")]
-    num_files = len(all_files)
+# === Main Controller ===
+def process_all_files():
+    all_files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith('.json')]
+    chunks = [all_files[i:i + CHUNK_SIZE] for i in range(0, len(all_files), CHUNK_SIZE)]
     
-    print(f"Total files to process: {num_files}")
-    
-    for i in range(0, num_files, BATCH_SIZE):
-        batch_files = all_files[i:i+BATCH_SIZE]
-        print(f"📂 Processing batch {i//BATCH_SIZE + 1} of {len(all_files)//BATCH_SIZE + 1}")
-        
-        # Process each file in the current batch
-        with driver.session() as session:
-            for filename in batch_files:
-                file_path = os.path.join(data_f, filename)
-                process_json_file(file_path, session)
-        
-        print(f"✅ Completed batch {i//BATCH_SIZE + 1}")
+    print(f"📂 {len(all_files)} JSON files found, split into {len(chunks)} chunks")
 
-# Run the import in batches
-process_all_files_in_batches()
-print("🎉 Database creation complete.")
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        executor.map(process_file_chunk, chunks)
+
+    print("🎉 All data successfully imported into Neo4j.")
+
+# === Run the script ===
+if __name__ == "__main__":
+    process_all_files()
