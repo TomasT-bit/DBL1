@@ -7,7 +7,7 @@ Install neo4j desktop
 4. make sure to pip install neo4j
 5. in config file of neo4j change dbms.memory.transaction.total.max=1G
 6. move the cvs files to import/ in neo4j
-7. use powershell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\bin\neo4j-admin.ps1" `
+7. use "   powershell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\bin\neo4j-admin.ps1" `
 database import full neo4j `
 --overwrite-destination=true `
 --multiline-fields=true `
@@ -51,5 +51,7 @@ Modeling:
 
 #TO DO
 When running to_csv.py bunch of errors regarding missing entries 
-Other features that must be included, look through the data description 
+so far ignoring failrues in missing values etc, make sure filtreing is good 
+include filtering based on date 
+Other features that must be included, look through the data description / better moddeling
 neo4j has in built online feature look into it if you want 
