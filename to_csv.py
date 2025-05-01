@@ -3,6 +3,7 @@ import json
 import csv
 import re
 import logging
+import shutil
 from tqdm import tqdm
 from datetime import datetime
 
@@ -20,7 +21,13 @@ screen_name_to_id = {}
 #Filter_start() =
 #Filter_end() =
 
-# the filtered csv files r put in the directory "import" in the DBL1 folder, make sure to create it before running
+#Delete previous import files
+if os.path.exists(OUTPUT_DIR):
+    shutil.rmtree(OUTPUT_DIR)
+
+#Make it
+os.makedirs(OUTPUT_DIR)
+
 users_file = open(os.path.join(OUTPUT_DIR, "users.csv"), "w", newline='', encoding="utf-8")
 tweets_file = open(os.path.join(OUTPUT_DIR, "tweets.csv"), "w", newline='', encoding="utf-8")
 posted_file = open(os.path.join(OUTPUT_DIR, "posted.csv"), "w", newline='', encoding="utf-8")
@@ -79,6 +86,7 @@ def process_file(file_path):
                         mentions_writer.writerow([tid, mentioned_user_id, "MENTIONED"])
             except Exception as e:
                 logging.warning(f"Error processing line in {file_path}: {e}")
+                logging.warning(f"Line had: {line.strip()}")
 
 def process():
     files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
