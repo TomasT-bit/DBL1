@@ -7,6 +7,15 @@ Install neo4j desktop
 4. make sure to pip install neo4j
 5. in config file of neo4j change dbms.memory.transaction.total.max=1G
 6. move the cvs files to import/ in neo4j
+7. use powershell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\bin\neo4j-admin.ps1" `
+database import full neo4j `
+--overwrite-destination=true `
+--multiline-fields=true `
+--nodes="import\users.csv" `
+--nodes="import\tweets.csv" `
+--relationships="import\posted.csv" `
+--relationships="import\mentions.csv"
+ 
 
 Rationale: 
 jsons take way too long neo4j has its own method for cvs. 
@@ -17,14 +26,16 @@ initialize.py - puts the data into neo4j
 delete.py - clears the database
 
 in neo4j.conf make sure that !dbms.security.allow_csv_import_from_file_urls=true is uncommented 
-                            !dbms.directories.import=import
-                            !dbms.security.procedures.unrestricted=apoc.*
-                            !dbms.security.procedures.allowlist=apoc.* is uncomented
+                            !dbms.directories.import=import ?
+                            !dbms.security.procedures.unrestricted=apoc.*,gds.*
+                            !dbms.security.procedures.allowlist=apoc.*,gds.* is uncomented
+                            dbms.directories.plugins=plugins ?
+
 
                             #dbms.memory.heap.initial_size=1G
                             #dbms.memory.heap.max_size=4G
                             #dbms.memory.pagecache.size=2G
-!Download APOC on the database and restart !
+!Download APOC on the database and restart ! 	[\["5.24.0"\]](https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases)
 
 
 Definitions:    

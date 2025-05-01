@@ -1,27 +1,49 @@
 from neo4j import GraphDatabase
 
-# Set up local Neo4J
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
 
-
-#TBh just remove the database and build a new one 
-
 # Initialize driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
-# Simple Cypher query to delete all nodes and relationships
-DELETE_QUERY = "MATCH (n) DETACH DELETE n"
+# Cypher query for batch deletion
+DELETE_QUERY = """
+CALL apoc.periodic.iterate(
+  'MATCH (n) RETURN n LIMIT 100000',  // Fetches nodes in batches of 1000
+  'DETACH DELETE n',               // Deletes each batch of nodes
+  {batchSize:1000, parallel:true}  // Set batch size and parallelism
+)
+YIELD batches, total, errorMessages
+RETURN batches, total, errorMessages
+"""
 
-# Function to run the deletion
+# Function to check how many nodes are left in the database
+def get_remaining_nodes(session):
+    result = session.run("MATCH (n) RETURN count(n) AS remaining_nodes")
+    return result.single()['remaining_nodes']
+
+# Function to clear database using batch deletion until empty
 def clear_database():
     with driver.session() as session:
-        result = session.run(DELETE_QUERY)
-        print("All nodes and relationships deleted.")
-        # Check how many nodes were deleted
-        count = session.run("MATCH (n) RETURN count(n)").single()[0]
-        print(f"Remaining nodes: {count}")
+        remaining_nodes = get_remaining_nodes(session)
+        print(f"Starting with {remaining_nodes} nodes.")
+        
+        while remaining_nodes > 0:
+            print(f"Deleting nodes, {remaining_nodes} remaining...")
+            result = session.run(DELETE_QUERY)
+            
+            # Get feedback on the batch deletion
+            for record in result:
+                print(f"Batches processed: {record['batches']}, Total nodes deleted: {record['total']}")
+                if record['errorMessages']:
+                    print(f"Error messages: {record['errorMessages']}")
+            
+            # Check remaining nodes after deletion
+            remaining_nodes = get_remaining_nodes(session)
+            print(f"Remaining nodes: {remaining_nodes}")
+        
+        print("Database cleared successfully.")
 
 # Run the deletion process
 clear_database()

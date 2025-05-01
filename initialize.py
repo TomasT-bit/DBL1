@@ -1,87 +1,38 @@
-from neo4j import GraphDatabase
-import time
+import subprocess
+import logging
 
-# Set up local Neo4J
-NEO4J_URI = "bolt://localhost:7687"
-NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "password"
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-# Initialize driver
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+# Paths to your CSV files
+users_csv = "C:\\Users\\20231225\\Desktop\\DBL1\\Neo\\relate-data\\dbmss\\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\\import\\users.csv"
+tweets_csv = "C:\\Users\\20231225\\Desktop\\DBL1\\Neo\\relate-data\\dbmss\\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\\import\\tweets.csv"
+relationships_csv = "C:\\Users\\20231225\\Desktop\\DBL1\\Neo\\relate-data\\dbmss\\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\\import\\relationships.csv"
+mentions_csv = "C:\\Users\\20231225\\Desktop\\DBL1\\Neo\\relate-data\\dbmss\\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\\import\\mentions.csv"
 
-# Cypher queries for batch insertions using APOC
-def import_users():
-    query = """
-    CALL apoc.periodic.iterate(
-        'LOAD CSV WITH HEADERS FROM "file:///users.csv" AS row RETURN row',
-        'CREATE (u:User {userId: row.`userId:ID(User)`, name: row.name, screen_name: row.screen_name})',
-        {batchSize: 1000, parallel: true}
-    )
-    YIELD batches, total, errorMessages
-    RETURN batches, total, errorMessages
-    """
-    with driver.session() as session:
-        result = session.run(query)
-        for record in result:
-            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
-        print("Users import complete.")
+# Full path to neo4j-admin executable
+neo4j_admin_executable = "C:\\Users\\20231225\\Desktop\\DBL1\\Neo\\relate-data\\dbmss\\dbms-a8ab2966-095b-4dcc-ae66-ad0708e5ee24\\bin\\neo4j-admin.bat"
 
-def import_tweets():
-    query = """
-    CALL apoc.load.csv('file:///tweets.csv', {skip: 0, separator: ','}) YIELD map AS row
-    CREATE (t:Tweet {tweetId: row.tweetId, content: row.content, createdAt: row.createdAt})
-    """
-    with driver.session() as session:
-        result = session.run(query)
-        for record in result:
-            print(f"Inserted Tweet: {record['tweetId']}")
-        print("Tweets import complete.")
+# Neo4j database name
+database_name = "neo4j"
 
-def import_posted():
-    query = """
-    CALL apoc.periodic.iterate(
-        'LOAD CSV WITH HEADERS FROM "file:///posted.csv" AS row RETURN row',
-        'MATCH (u:User {userId: row.`:START_ID(User)`}) MATCH (t:Tweet {tweetId: row.`:END_ID(Tweet)`}) CREATE (u)-[:POSTED]->(t)',
-        {batchSize: 1000, parallel: true}
-    )
-    YIELD batches, total, errorMessages
-    RETURN batches, total, errorMessages
-    """
-    with driver.session() as session:
-        result = session.run(query)
-        for record in result:
-            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
-        print("POSTED relationships import complete.")
+def run_import_command():
+    try:
+        # Run the import command
+        logging.info("Running import command...")
+        import_command = [
+            neo4j_admin_executable, "database", "import",
+            f"--database={database_name}",
+            f"--nodes={users_csv}",
+            f"--nodes={tweets_csv}",
+            f"--relationships={relationships_csv}",
+            f"--relationships={mentions_csv}"
+        ]
+        subprocess.run(import_command, check=True, shell=True)
+        
+        logging.info("Import completed successfully.")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"An error occurred: {e}")
 
-def import_mentions():
-    query = """
-    CALL apoc.periodic.iterate(
-        'LOAD CSV WITH HEADERS FROM "file:///mentions.csv" AS row RETURN row',
-        'MATCH (t:Tweet {tweetId: row.`:START_ID(Tweet)`}) MATCH (u:User {screen_name: row.`:END_ID(User)`}) CREATE (t)-[:MENTIONED]->(u)',
-        {batchSize: 1000, parallel: true}
-    )
-    YIELD batches, total, errorMessages
-    RETURN batches, total, errorMessages
-    """
-    with driver.session() as session:
-        result = session.run(query)
-        for record in result:
-            print(f"Batch Info: {record['batches']}, Total: {record['total']}, Errors: {record['errorMessages']}")
-        print("MENTIONED relationships import complete.")
-
-# Main function to run all imports
-def run_inserts():
-    start_time = time.time()
-
-    import_users()
-    import_tweets()
-    import_posted()
-    import_mentions()
-
-    print(f"All insertions completed in {time.time() - start_time} seconds.")
-
-# Run the insertions
-run_inserts()
-
-# Close the connection
-driver.close()
+if __name__ == "__main__":
+    run_import_command()

@@ -5,72 +5,90 @@ import re
 import logging
 from tqdm import tqdm
 
+# Directory paths
 DATA_DIR = "data"
-OUTPUT_DIR = "cvs"
+OUTPUT_DIR = "import"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Initialize sets for unique user and tweet IDs
 user_ids = set()
 tweet_ids = set()
+screen_name_to_id = {}
 
+# Open CSV files for writing data
 users_file = open(os.path.join(OUTPUT_DIR, "users.csv"), "w", newline='', encoding="utf-8")
 tweets_file = open(os.path.join(OUTPUT_DIR, "tweets.csv"), "w", newline='', encoding="utf-8")
 posted_file = open(os.path.join(OUTPUT_DIR, "posted.csv"), "w", newline='', encoding="utf-8")
 mentions_file = open(os.path.join(OUTPUT_DIR, "mentions.csv"), "w", newline='', encoding="utf-8")
 
+# Initialize CSV writers
 users_writer = csv.writer(users_file)
 tweets_writer = csv.writer(tweets_file)
 posted_writer = csv.writer(posted_file)
 mentions_writer = csv.writer(mentions_file)
 
-# Write headers
-users_writer.writerow(["userId:ID(User)", "name", "screen_name"])
-tweets_writer.writerow(["tweetId:ID(Tweet)", "text", "created_at"])
-posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
-mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])
+# Write headers to the CSV files
+users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name"])  # Add label column for Users
+tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at"])  # Add label column for Tweets
+posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])  # No label needed for relationships
+mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])  # No label needed for relationships
 
+# Function to extract mentions from tweet text
 def extract_mentions(text):
     return re.findall(r"@(\w+)", text)
 
+# Function to safely format large IDs as strings to avoid scientific notation
+def format_id(id_value):
+    return str(id_value)  # Convert ID to string without adding quotes
+
+# Process a single JSON file
 def process_file(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         for line in f:
             try:
                 tweet = json.loads(line)
                 user = tweet.get("user", {})
+                
+                # Skip if tweet ID or user ID is missing
                 if not tweet.get("id") or not user.get("id"):
                     continue
 
-                uid = str(user["id"])
-                tid = str(tweet["id"])
+                uid = format_id(user["id"])
+                tid = format_id(tweet["id"])
 
-                # users
+                # Handle users - add user info only if not already added
                 if uid not in user_ids:
-                    users_writer.writerow([uid, user.get("name", ""), user.get("screen_name", "")])
+                    users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", "")])  # Add label for User node
                     user_ids.add(uid)
+                    screen_name_to_id[user.get("screen_name", "")] = uid
 
-                # tweets
+                # Handle tweets - add tweet info only if not already added
                 if tid not in tweet_ids:
-                    tweets_writer.writerow([tid, tweet.get("text", ""), tweet.get("created_at", "")])
+                    tweets_writer.writerow(["Tweet", tid, tweet.get("text", ""), tweet.get("created_at", "")])  # Add label for Tweet node
                     tweet_ids.add(tid)
 
-                # user posted tweet
+                # Record the "posted" relationship between users and tweets
                 posted_writer.writerow([uid, tid, "POSTED"])
 
-                # tweet mentioned user sceen name is currently id need to change this 
+                # Extract mentions from the tweet text and record them
                 mentions = extract_mentions(tweet.get("text", ""))
                 for mentioned_screen_name in mentions:
-                    mentions_writer.writerow([tid, mentioned_screen_name, "MENTIONED"])
+                    mentioned_user_id = screen_name_to_id.get(mentioned_screen_name)
+                    if mentioned_user_id:
+                        mentions_writer.writerow([tid, mentioned_user_id, "MENTIONED"])
             except Exception as e:
-                logging.warning(f"Error in {file_path}: {e}")
+                logging.warning(f"Error processing line in {file_path}: {e}")
 
+# Main function to process all files
 def process():
     files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
     for fpath in tqdm(files, desc="Processing files"):
         process_file(fpath)
 
-if __name__ == "__main__":  
-    os.makedirs("cvs")
+# Main script execution
+if __name__ == "__main__":
     process()
+    # Close all files after processing
     users_file.close()
     tweets_file.close()
     posted_file.close()
