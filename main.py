@@ -14,4 +14,8 @@ WHERE t.lang = 'en'
 RETURN count(t) AS EnglishTweetCount
 """
 
+Query2 ="""
+MATCH (n1:Tweet)-[r:MENTIONED]->(n2:User{userId:"22536055"}) Limit 25
+Return n1,n2
+"""
 count_eng=driver.session(Query1)
