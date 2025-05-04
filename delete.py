@@ -22,7 +22,7 @@ RETURN batches, total, errorMessages
 def get_remaining_nodes(session):
     result = session.run("MATCH (n) RETURN count(n) AS remaining_nodes")
     return result.single()['remaining_nodes']
-y
+
 def clear_database():
     with driver.session() as session:
         remaining_nodes = get_remaining_nodes(session)
