@@ -31,7 +31,7 @@ in neo4j.conf make sure that !dbms.security.allow_csv_import_from_file_urls=true
 
 
 then adapt this to your paths 
-PowerShell -File "C:\Users\20231225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be25c3d-fff2-4069-abc4-d50d6e8c5425\bin\neo4j-admin.ps1" `
+PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be25c3d-fff2-4069-abc4-d50d6e8c5425\bin\neo4j-admin.ps1" `
 database import full <database name>" `
 --overwrite-destination=true `
 --multiline-fields=true `
