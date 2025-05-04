@@ -31,7 +31,7 @@ Contains: ":START_ID(Tweet)", ":END_ID(Hashtag)", ":TYPE"])
 """
 
 #Directory paths
-DATA_DIR = "data1" 
+DATA_DIR = "data" 
 OUTPUT_DIR = "import"
 
 FILTER_START = datetime(2000, 1, 1)
