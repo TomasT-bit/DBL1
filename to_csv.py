@@ -18,7 +18,7 @@ Conversation: exits reply into or reply out of
 NODES: 
 users:  "userId:ID(User)", "name", "screen_name", "followers", "verified"])
 tweets: "tweetId:ID(Tweet)", "text", "created_at", "lang", "favorited_count"])
-hashtag: ":ID(Hashtag)", "counter"])
+hashtag: ":ID(Hashtag)"," Hashtag", "counter"])
 posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
 
 
@@ -111,7 +111,7 @@ hashtag_counter = Counter()
 #Initial write for labels 
 users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name", "followers", "verified"])
 tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "favorite_count"]) 
-hashtag_writer.writerow([":LABEL", ":ID(Hashtag)", "counter"])
+hashtag_writer.writerow([":LABEL", ":ID(Hashtag)","hastag_text", "counter"])
 posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
 
 
@@ -170,7 +170,7 @@ for file_path in tqdm(files, desc="First pass"):
 
 #Insert the tags into the hashtag.csv
 for tag, count in hashtag_counter.items():
-    hashtag_writer.writerow(["Hashtag", tag, count])
+    hashtag_writer.writerow(["Hashtag", tag, tag, count])
 
 
 #Closing files
