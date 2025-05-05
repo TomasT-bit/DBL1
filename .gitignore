@@ -29,3 +29,7 @@ replay_pid*
 
 #Data excluded 
 data/
+data1/
+
+#created from data
+import/
