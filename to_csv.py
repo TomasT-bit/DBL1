@@ -143,7 +143,6 @@ for file_path in tqdm(files, desc="First pass"):
                     text = get_full_text(tweet)
                     hashtags= extract_hashtag(text)
                     favorite_count = tweet.get("favorite_count", 0)
-                    print(favorite_count)
                     tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), favorite_count])
                     tweet_ids.add(tid)
                 # Counting hashtags 
