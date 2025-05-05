@@ -8,6 +8,7 @@ NEO4J_PASSWORD = "password"
 # Initialize driver
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 # Cypher query for batch deletion - so its done over time
+
 NumberOfEnglishTweets =""""
 MATCH (t:Tweet)
 WHERE t.lang = 'en'
@@ -198,4 +199,4 @@ Return n1,n2
 
 
 
-count_eng=driver.session(Query1)
+count_eng=driver.session(NumberOfEnglishTweets)
