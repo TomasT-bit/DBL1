@@ -18,7 +18,7 @@ Conversation: exits reply into or reply out of
 NODES: 
 users:  "userId:ID(User)", "name", "screen_name", "followers", "verified"])
 tweets: "tweetId:ID(Tweet)", "text", "created_at", "lang", "favorited_count"])
-hashtag: ":ID(Hashtag)", Hahstag "counter"])
+hashtag: ":ID(Hashtag)"," Hashtag", "counter"])
 posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
 
 
