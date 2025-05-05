@@ -103,7 +103,7 @@ hashtag_counter = Counter()
 
 #Initial write for labels 
 users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name", "followers", "verified"])
-tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "favorited_count"])
+tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "favorite_count"]) 
 hashtag_writer.writerow([":LABEL", ":ID(Hashtag)", "counter"])
 posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
 
@@ -142,9 +142,10 @@ for file_path in tqdm(files, desc="First pass"):
                 if tid not in tweet_ids:
                     text = get_full_text(tweet)
                     hashtags= extract_hashtag(text)
-                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet.get("favorite_count", "")])
+                    favorite_count = tweet.get("favorite_count", 0)
+                    print(favorite_count)
+                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), favorite_count])
                     tweet_ids.add(tid)
-                
                 # Counting hashtags 
                 hashtags = extract_hashtag(text)
                 hashtag_counter.update(hashtags)
