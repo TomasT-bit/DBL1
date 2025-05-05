@@ -31,16 +31,8 @@ in neo4j.conf make sure that !dbms.security.allow_csv_import_from_file_urls=true
 
 
 then adapt this to your paths 
-PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be25c3d-fff2-4069-abc4-d50d6e8c5425\bin\neo4j-admin.ps1" `
-database import full <database name>" `
---overwrite-destination=true `
---multiline-fields=true `
---verbose `
---nodes="import\users.csv" `
---nodes="import\tweets.csv" `
---relationships="import\posted.csv" `
---relationships="import\mentions.csv" `
---relationships="import\retweets.csv"
+PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be25c3d-fff2-4069-abc4-d50d6e8c5425\bin\neo4j-admin.ps1" database import full twitter2 --overwrite-destination=true --multiline-fields=true --verbose --nodes="import\users.csv" --nodes="import\tweets.csv" --nodes="import\hashtag.csv" --relationships="import\posted.csv" --relationships="import\mentions.csv" --relationships="import\retweets.csv" --relationships="import\quoted.csv" --relationships="import\contain.csv"
+
 
 After create database name in neo4j desktop
 
