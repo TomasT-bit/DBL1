@@ -31,7 +31,7 @@ Contains: ":START_ID(Tweet)", ":END_ID(Hashtag)", ":TYPE"])
 """
 
 #Directory paths
-DATA_DIR = "data1" 
+DATA_DIR = "data" 
 OUTPUT_DIR = "import"
 
 FILTER_START = datetime(2000, 1, 1)
@@ -82,6 +82,13 @@ def get_full_text(tweet):
     elif "extended_tweet" in tweet:
         return tweet["extended_tweet"]["full_text"]
     return tweet.get("full_text", tweet.get("text", ""))
+
+def get_favorite_count(tweet):
+    if "retweeted_status" in tweet:
+        rt_status = tweet["retweeted_status"]
+        return rt_status.get("favorite_count", 0)
+    return tweet.get("favorite_count", 0)
+
 
 # DEAL with the jsosn in passes to ensure population of variables for keeping unique ids and valid connections
 
@@ -142,7 +149,7 @@ for file_path in tqdm(files, desc="First pass"):
                 if tid not in tweet_ids:
                     text = get_full_text(tweet)
                     hashtags= extract_hashtag(text)
-                    favorite_count = tweet.get("favorite_count", 0)
+                    favorite_count =get_favorite_count(tweet)
                     tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), favorite_count])
                     tweet_ids.add(tid)
                 # Counting hashtags 
