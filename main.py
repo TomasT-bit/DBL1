@@ -156,6 +156,13 @@ MATCH (n1:Tweet)-[r:MENTIONED]->(n2:User{userId:"20626359"}) Limit 25
 Return n1,n2
 """
 
+PostedAmericanAirEnglishOnly = """
+MATCH (u:User)-[:POSTED]->(t:Tweet)
+MATCH (n2:User {userId: "22536055"})-[:POSTED]->(n1:Tweet)
+WHERE t.lang = "en"
+RETURN n1, n2, u, t
+LIMIT 100
+"""
 
 
 
