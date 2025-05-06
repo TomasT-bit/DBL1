@@ -2,36 +2,38 @@
 #SETUP
 Install neo4j desktop
 1. Move Data folder into DBL1 call it "data"
-2. Running python to_csv.py selects the relations and entities to be moddeled in neo4j and puts it in created folder "cvs"
+2. Running python new_to_csv.py selects the relations and entities to be moddeled in neo4j and puts it in created folder "cvs"
 3. Have running Neo4j dbms with password "password"
 4. make sure to pip install neo4j
 5. in config file of neo4j change according to below
 6. move the cvs files to import/ in neo4j
+7. Install APOC plugin and Graph Data Science Library 
 
 
-Rationale: 
+#RATIONALE: 
 jsons take way too long neo4j has its own method for cvs. 
 
 Running: 
-python to_csv.py - makes csv from jsons
-initialize.py - puts the data into neo4j 
-delete.py - clears the database
+python new_to_csv.py - makes csv from jsons
+initialize.py - puts the data into neo4j #NOTDONE
 
-in neo4j.conf make sure that !dbms.security.allow_csv_import_from_file_urls=true is uncommented 
-                            !dbms.directories.import=import ?
-                            !dbms.security.procedures.unrestricted=apoc.*,gds.*
-                            !dbms.security.procedures.allowlist=apoc.*,gds.* is uncomented
-                            dbms.directories.plugins=plugins ?
+in neo4j.conf make sure that 
+dbms.security.allow_csv_import_from_file_urls=true is uncommented 
+dbms.directories.import=import ?
+dbms.security.procedures.unrestricted=apoc.*,gds.*
+dbms.security.procedures.allowlist=apoc.*,gds.* is uncommentedd
+dbms.directories.plugins=plugins ?
 
+server.memory.pagecache.size=2G
+dbms.memory.heap.initial_size=3G
+dbms.memory.heap.max_size=4G
+dbms.memory.pagecache.size=2G
 
-                            #dbms.memory.heap.initial_size=1G
-                            #dbms.memory.heap.max_size=4G
-                            #dbms.memory.pagecache.size=2G
 !Download APOC on the database and restart ! 	[\["5.24.0"\]](https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases)
 
 
 then adapt this to your paths 
-PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be25c3d-fff2-4069-abc4-d50d6e8c5425\bin\neo4j-admin.ps1" `
+PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079e945-2bb0-4856-b164-8cefb28053e3\bin\neo4j-admin.ps1" `
     database import full twitter9 `
     --overwrite-destination=true `
     --multiline-fields=true `
@@ -46,13 +48,10 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-7be2
     --relationships="import\contain.csv" `
     --relationships="import\replies.csv"
 
-
-
-
 After create database name in neo4j desktop
 
 Definitions:    
-Conversations: reply to eo at least once (consider hamiltonian/eularian cycles in future)
+Conversations: Weakly connected components 
 
 Modeling: 
     Mentions: Tweet id, mentioned User id - directed edge between tweet and user

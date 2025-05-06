@@ -9,6 +9,55 @@ NEO4J_PASSWORD = "password"
 driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 # Cypher query for batch deletion - so its done over time
 
+
+#Conversations moddeled as weakly connected components, make sure that the previous projection was cleaned
+def get_conversations():
+    with driver.session(database="twitter") as session: #make sure to include this as name of ur database
+
+        # Create projection
+        session.run("""
+            CALL gds.graph.project(
+                'convoGraph',
+                'Tweet',
+                {
+                    REPLIES: {orientation: 'UNDIRECTED'},
+                    RETWEETS: {orientation: 'UNDIRECTED'},
+                    QUOTES: {orientation: 'UNDIRECTED'}
+                }
+            )
+        """)
+
+        #number of conversations
+        count_result = session.run("""
+            CALL gds.wcc.stats('convoGraph')
+            YIELD componentCount
+        """)
+        component_count = count_result.single()["componentCount"]
+        print(f"Total number of conversations: {component_count}")
+
+        # get hte component
+        result = session.run("""
+            CALL gds.wcc.stream('convoGraph')
+            YIELD nodeId, componentId
+            RETURN componentId, collect(gds.util.asNode(nodeId).tweetId) AS tweets
+            ORDER BY size(tweets) DESC
+        """)
+
+        conversations = []
+        for record in result:
+            conversations.append({
+                "componentId": record["componentId"],
+                "tweets": record["tweets"]
+            })
+
+        # Cleanup
+        session.run("CALL gds.graph.drop('convoGraph') YIELD graphName")
+
+        return component_count, conversations
+
+
+
+
 NumberOfEnglishTweets =""""
 MATCH (t:Tweet)
 WHERE t.lang = 'en'
@@ -163,6 +212,10 @@ WHERE t.lang = "en"
 RETURN n1, n2, u, t
 LIMIT 100
 """
+
+
+component_count, conversations = get_conversations()
+print(f"Total conversations: {component_count}")
 
 
 

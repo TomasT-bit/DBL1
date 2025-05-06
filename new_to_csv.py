@@ -85,13 +85,14 @@ Classifies the tweet type:
 - 1 for a normal tweet
 - 2 for a retweet
 - 3 for a quote tweet
+- 4 for reply 
 """
 def classify_tweet_type(tweet):
     if "retweeted_status" in tweet:
         return 2  # Retweet
     elif tweet.get("is_quote_status") and "quoted_status" in tweet:
         return 3  # Quote tweet
-    elif tweet.get("in_reply_to_status_id") is not None:
+    elif tweet.get("in_reply_to_status_id") is not None or tweet.get("in_reply_to_status_id_str"):
         return 4  # Reply
     return 1  # Normal tweet
 
@@ -121,7 +122,7 @@ hashtag_writer = csv.writer(hashtag_file)
 # counter for hashtags
 hashtag_counter = Counter()
 
-# Write headers
+# Write headers #disregard :LABEL md :TYPE 
 users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name", "followers", "verified"])
 tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "Type"])
 hashtag_writer.writerow([":LABEL", ":ID(Hashtag)", "hashtag_text", "counter"])
@@ -257,7 +258,7 @@ for file_path in tqdm(files, desc="Second pass"):
                             retweet_edges.add(edge)
 
                 # === Quotes
-                if tweet.get("is_quote_status") and "quoted_status" in tweet:
+                if "retweeted_status" not in tweet and tweet.get("is_quote_status") and "quoted_status" in tweet:
                     quoted_tweet = tweet["quoted_status"]
                     liked_by=quoted_tweet.get("favorite_count", 0)
                     quoted_tid = quoted_tweet.get("id_str")
