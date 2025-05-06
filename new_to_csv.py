@@ -156,7 +156,7 @@ for file_path in tqdm(files, desc="First pass"):
                     text = get_full_text(tweet)
                     favorite_count = get_favorite_count(tweet)
                     tweet_type = classify_tweet_type(tweet)
-                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), favorite_count, tweet_type])
+                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type])
                     tweet_ids.add(tid)
 
                 hashtags = extract_hashtag(get_full_text(tweet))
