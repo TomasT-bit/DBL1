@@ -14,12 +14,13 @@ Conversation: exits reply into or reply out of
 """
 """
 NODES: 
-users:  "userId:ID(User)", "name", "screen_name", "followers", "verified"])  DONE
+users:  "userId:ID(User)", "name", "screen_name", "followers", "verified"])  
 
 tweets: "tweetId:ID(Tweet)", "text", "created_at", "lang", "Type"]
                                                                                         -1 Original
                                                                                         -2 Retweet
-                                                                                        -3 Quote  DONE
+                                                                                        -3 Quote  
+                                                                                        - 4 Reply
 hashtg: ":ID(Hashtag)", "Hashtag", "counter"]
 
 RELATIONS: 
@@ -31,7 +32,7 @@ Contains: from tweet to hashtag
 """
 
 # Directory paths
-DATA_DIR = "data1"
+DATA_DIR = "data"
 OUTPUT_DIR = "import"
 
 # Filtering on time 
@@ -90,6 +91,8 @@ def classify_tweet_type(tweet):
         return 2  # Retweet
     elif tweet.get("is_quote_status") and "quoted_status" in tweet:
         return 3  # Quote tweet
+    elif tweet.get("in_reply_to_status_id") is not None:
+        return 4  # Reply
     return 1  # Normal tweet
 
 def get_favorite_count(tweet):
@@ -186,6 +189,7 @@ mention_edges = set()
 retweet_edges = set()
 quoted_edges = set()
 contain_edges = set()
+reply_edges = set()
 
 # Opening output files
 mentions_file = open(os.path.join(OUTPUT_DIR, "mentions.csv"), "w", newline="", encoding="utf-8")
@@ -197,11 +201,15 @@ retweets_writer = csv.writer(retweets_file)
 quotes_writer = csv.writer(quotes_file)
 contains_writer = csv.writer(contains_file)
 
+replies_file = open(os.path.join(OUTPUT_DIR, "replies.csv"), "w", newline="", encoding="utf-8")
+replies_writer = csv.writer(replies_file)
+
 # Write headers
 mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])
 retweets_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", "liked_by", ":TYPE"])
 quotes_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", "liked_by", ":TYPE"])
 contains_writer.writerow([":START_ID(Tweet)", ":END_ID(Hashtag)", ":TYPE"])
+replies_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"])
 
 for file_path in tqdm(files, desc="Second pass"):
     with open(file_path, "r", encoding="utf-8") as f:
@@ -259,6 +267,16 @@ for file_path in tqdm(files, desc="Second pass"):
                             quotes_writer.writerow([tid, quoted_tid, liked_by, "QUOTES"]) #Header liked by 
                             quoted_edges.add(edge)
 
+                    # === Replies
+                if tweet.get("in_reply_to_status_id"):
+                    replied_tid = tweet.get("in_reply_to_status_id")
+                    if replied_tid and replied_tid in tweet_ids:
+                        edge = (tid, replied_tid)
+                        if edge not in reply_edges:
+                            replies_writer.writerow([tid, replied_tid, "REPLIES"])
+                            reply_edges.add(edge)
+
+
                 # === Contains hashtags
                 hashtags = extract_hashtag(text)
                 for hashtag in hashtags:
@@ -267,6 +285,7 @@ for file_path in tqdm(files, desc="Second pass"):
                         if edge not in contain_edges:
                             contains_writer.writerow([tid, hashtag, "CONTAINS"])
                             contain_edges.add(edge)
+                
 
             except Exception:
                 continue
@@ -276,3 +295,5 @@ mentions_file.close()
 retweets_file.close()
 quotes_file.close()
 contains_file.close()
+replies_file.close()
+
