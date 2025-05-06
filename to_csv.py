@@ -224,10 +224,24 @@ for file_path in tqdm(files, desc="Second pass"):
                         contain_edges.add(edge)
 
             except Exception as e:
-                continue
+                logging.warning(f"Error processing line in {file_path}: {e}")
+                logging.warning(f"Line had: {line.strip()}")
 
-# Close second pass files
-mentions_file.close()
-retweets_file.close()
-quotes_file.close()
-contains_file.close()
+def process():
+    files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
+    for fpath in tqdm(files, desc="Processing files"):
+        process_file(fpath)
+
+
+if __name__ == "__main__":
+    process()
+    # Close all files
+    users_file.close()
+    tweets_file.close()
+    posted_file.close()
+    mentions_file.close()
+
+
+#TO DO HERE:
+#Filter eronous data + rationale
+#ADD from to functionality 
