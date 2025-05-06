@@ -10,7 +10,7 @@ from collections import Counter
 logging.basicConfig(level=logging.CRITICAL)
 
 # === Paths ===
-DATA_DIR = "data1"
+DATA_DIR = "data"
 OUTPUT_DIR = "import"
 
 FILTER_START = datetime(2000, 1, 1)
@@ -22,6 +22,10 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 user_ids = set()
 tweet_ids = set()
 posted_edges = set()
+
+raw_total = 0
+valid_total = 0
+original_total = 0
 
 screen_name_to_id = dict()
 
@@ -95,6 +99,8 @@ for file_path in tqdm(files, desc="First pass"):
             try:
                 tweet = json.loads(line)
 
+                raw_total += 1
+
                 if list(tweet.keys())[0] == "delete":
                     continue
 
@@ -111,6 +117,12 @@ for file_path in tqdm(files, desc="First pass"):
 
                 if not uid or not tid:
                     continue
+
+                valid_total += 1
+                if "retweeted_status" in tweet or (tweet.get("is_quote_status") and "quoted_status" in tweet):
+                    continue
+                original_total += 1
+
 
                 if uid not in user_ids:
                     users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", ""),
@@ -231,3 +243,22 @@ mentions_file.close()
 retweets_file.close()
 quotes_file.close()
 contains_file.close()
+
+print("Number of raw tweets:", raw_total)
+print("Number of valid tweets:", valid_total)
+print("Number of original tweets:", original_total)
+
+json_line_count = 0
+for file in os.listdir("data"):
+    if file.endswith(".json"):
+        with open(os.path.join("data", file), "r", encoding="utf-8") as f:
+            for line in f:
+                json_line_count += 1
+print("Tweets before cleaning:", json_line_count)
+
+cleaned_lines = 0
+with open("import/tweets.csv", "r", encoding="utf-8") as f:
+    for line in f:
+        cleaned_lines += 1
+cleaned_lines -= 1
+print("Tweets after cleaning:", cleaned_lines)
