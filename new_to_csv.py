@@ -26,12 +26,12 @@ RELATIONS:
 Posted: ":START_ID(User)", ":END_ID(Tweet)", ":TYPE"]) DONE
 Mentions: ":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])
 Retweets: ":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"]) - from a tweet to the tweet it is retweeting
-Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"]) - tweet quoting another tweet
+Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"]) - tweet quoting another tweet   added extra field Liked_by instead of ": TYPEe for quotes and retweets 
 Contains: from tweet to hashtag
 """
 
 # Directory paths
-DATA_DIR = "data"
+DATA_DIR = "data1"
 OUTPUT_DIR = "import"
 
 # Filtering on time 
@@ -199,8 +199,8 @@ contains_writer = csv.writer(contains_file)
 
 # Write headers
 mentions_writer.writerow([":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])
-retweets_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"])
-quotes_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"])
+retweets_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", "liked_by", ":TYPE"])
+quotes_writer.writerow([":START_ID(Tweet)", ":END_ID(Tweet)", "liked_by", ":TYPE"])
 contains_writer.writerow([":START_ID(Tweet)", ":END_ID(Hashtag)", ":TYPE"])
 
 for file_path in tqdm(files, desc="Second pass"):
@@ -238,22 +238,25 @@ for file_path in tqdm(files, desc="Second pass"):
 
                 # === Retweets
                 if "retweeted_status" in tweet:
-                    original_tweet = tweet["retweeted_status"]
-                    original_tid = original_tweet.get("id_str")
+                    # It's a retweet
+                    pointing_to = tweet["retweeted_status"]
+                    liked_by=pointing_to.get("favorite_count", 0)
+                    original_tid = pointing_to.get("id_str")
                     if original_tid and original_tid in tweet_ids:
                         edge = (tid, original_tid)
                         if edge not in retweet_edges:
-                            retweets_writer.writerow([tid, original_tid, "RETWEETED"])
+                            retweets_writer.writerow([tid, original_tid, liked_by, "RETWEETS"]) #header liked by 
                             retweet_edges.add(edge)
 
                 # === Quotes
                 if tweet.get("is_quote_status") and "quoted_status" in tweet:
                     quoted_tweet = tweet["quoted_status"]
+                    liked_by=quoted_tweet.get("favorite_count", 0)
                     quoted_tid = quoted_tweet.get("id_str")
                     if quoted_tid and quoted_tid in tweet_ids:
                         edge = (tid, quoted_tid)
                         if edge not in quoted_edges:
-                            quotes_writer.writerow([tid, quoted_tid, "QUOTED"])
+                            quotes_writer.writerow([tid, quoted_tid, liked_by, "QUOTES"]) #Header liked by 
                             quoted_edges.add(edge)
 
                 # === Contains hashtags
