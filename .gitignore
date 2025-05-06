@@ -29,6 +29,9 @@ replay_pid*
 
 #Data excluded 
 data/
+data1/
 
 #created from data
-cvs/
+import/
+
+to_csv.py
