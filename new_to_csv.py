@@ -268,10 +268,11 @@ for file_path in tqdm(files, desc="Second pass"):
                             quoted_edges.add(edge)
 
                     # === Replies
-                if tweet.get("in_reply_to_status_id"):
-                    replied_tid = tweet.get("in_reply_to_status_id")
+                if tweet.get("in_reply_to_status_id_str"):
+                    replied_tid = tweet.get("in_reply_to_status_id_str")
                     if replied_tid and replied_tid in tweet_ids:
                         edge = (tid, replied_tid)
+                        print(edge)
                         if edge not in reply_edges:
                             replies_writer.writerow([tid, replied_tid, "REPLIES"])
                             reply_edges.add(edge)
