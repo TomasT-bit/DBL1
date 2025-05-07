@@ -12,30 +12,38 @@ driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
 #Conversations moddeled as weakly connected components, make sure that the previous projection was cleaned
 def get_conversations():
-    with driver.session(database="twitter") as session: #make sure to include this as name of ur database
-
-        # Create projection
+    with driver.session(database="twitter") as session:
+        # Ensure previous graph is dropped
         session.run("""
-            CALL gds.graph.project(
+            CALL gds.graph.exists('convoGraph') YIELD exists
+            WITH exists
+            CALL apoc.do.when(
+                exists,
+                'CALL gds.graph.drop("convoGraph", false)',
+                '',
+                {}
+            ) YIELD value
+            RETURN 1
+        """)
+
+        # Create graph projection using Cypher
+        session.run("""
+            CALL gds.graph.project.cypher(
                 'convoGraph',
-                'Tweet',
-                {
-                    REPLIES: {orientation: 'UNDIRECTED'},
-                    RETWEETS: {orientation: 'UNDIRECTED'},
-                    QUOTES: {orientation: 'UNDIRECTED'}
-                }
+                'MATCH (t:Tweet) RETURN id(t) AS id',
+                'MATCH (a:Tweet)-[r:REPLIES|RETWEETS|QUOTES]->(b:Tweet)
+                 RETURN id(a) AS source, id(b) AS target, "UNDIRECTED" AS orientation'
             )
         """)
 
-        #number of conversations
+        # Run WCC algorithm
         count_result = session.run("""
             CALL gds.wcc.stats('convoGraph')
             YIELD componentCount
         """)
         component_count = count_result.single()["componentCount"]
-        print(f"Total number of conversations: {component_count}")
 
-        # get hte component
+        # Stream WCC results
         result = session.run("""
             CALL gds.wcc.stream('convoGraph')
             YIELD nodeId, componentId
@@ -44,16 +52,29 @@ def get_conversations():
         """)
 
         conversations = []
+        less_than_2 = 0
+        less_than_3 = 0
+
         for record in result:
+            tweets = record["tweets"]
             conversations.append({
                 "componentId": record["componentId"],
-                "tweets": record["tweets"]
+                "tweets": tweets
             })
 
-        # Cleanup
+            if len(tweets) < 2:
+                less_than_2 += 1
+                #print(tweets)
+            if len(tweets) < 3:
+                less_than_3 += 1
+
+        # Drop projection
         session.run("CALL gds.graph.drop('convoGraph') YIELD graphName")
 
-        return component_count, conversations
+        return component_count, conversations, less_than_2, less_than_3
+
+
+
 
 
 
@@ -214,8 +235,9 @@ LIMIT 100
 """
 
 
-component_count, conversations = get_conversations()
-print(f"Total conversations: {component_count}")
+component_count, conversations, count1, count2 = get_conversations()
+print(f"Total conversations: {component_count} \n ")
+print(f"Conversation one node {count1}, Conversations with two noddes {count2-count1}")
 
 
 
@@ -259,4 +281,4 @@ print(f"Total conversations: {component_count}")
 
 
 
-count_eng=driver.session(NumberOfEnglishTweets)
+#count_eng=driver.session(NumberOfEnglishTweets)
