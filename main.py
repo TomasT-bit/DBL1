@@ -52,8 +52,8 @@ def get_conversations():
         """)
 
         conversations = []
-        less_than_2 = 0
-        less_than_3 = 0
+        less = 0
+        more = 0
 
         for record in result:
             tweets = record["tweets"]
@@ -61,17 +61,18 @@ def get_conversations():
                 "componentId": record["componentId"],
                 "tweets": tweets
             })
-
-            if len(tweets) < 2:
-                less_than_2 += 1
-                #print(tweets)
-            if len(tweets) < 3:
-                less_than_3 += 1
+            if len(tweets)<2:
+                print(tweets)
+                less+=1
+            if len(tweets) >= 2:
+                more += 1
+        
+        return component_count, conversations, less , more
 
         # Drop projection
         session.run("CALL gds.graph.drop('convoGraph') YIELD graphName")
 
-        return component_count, conversations, less_than_2, less_than_3
+        return component_count, conversations, less_than_2
 
 
 
@@ -237,7 +238,7 @@ LIMIT 100
 
 component_count, conversations, count1, count2 = get_conversations()
 print(f"Total conversations: {component_count} \n ")
-print(f"Conversation one node {count1}, Conversations with two noddes {count2-count1}")
+print(f"Conversation one node {count1}, {count2}")
 
 
 

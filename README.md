@@ -1,23 +1,49 @@
-# DBL1
-#SETUP
-Install neo4j desktop
-1. Move Data folder into DBL1 call it "data"
-2. Running python new_to_csv.py selects the relations and entities to be moddeled in neo4j and puts it in created folder "cvs"
+# DBL DATA CHALLANGE 
+
+Welcome to the DBL Data Challenge repository! This project contains the initial processing of json files into csv with fields relevant for analysis that are later loaded into neo4j, as well as neo4j cyphers that are used for data processing and analysis of the twitter data.
+
+## Table of Contents
+
+- [Project Overview](##introduction)
+- [Setup](##setup)
+- [Sentimement Analysis Usage](##sentimement)
+
+##introduction 
+This repository is intended to help with analyzing benefit of the presence of airline twitter teams on the social media platoform. It is designed in such a way that it accounts for both the benefit of the social media teams activity in regards to posting content as well the support role the teams often plays. 
+
+We convert the jsons into csvs to mke use of admin import command made by neo4j for faster database building
+
+Firstly we track the whole flow of a post made by a airlines twitter team, and analyze the sentiment. Secondly we compare the sentiment of tweet that the airline is replying to (defined as support action) and sentiment after ((Define length)). Since we use neo4j we make use of common graph algorithms
+
+Modeling: 
+    Nodes: 
+        1. USERS:  "userId", "name", "screen_name", "followers", "verified"
+        2. TWEETS: "tweetId", "text", "created_at", "lang", "Type" 
+         Type used to distinquish between original tweet (1) ,retweet (2),quote tweet(3), and generated one for the sake of connection(0)
+        3. HASHTAG "Name", "Count"
+
+    Relations: 
+        1. Posted: ":START_ID(User)", ":END_ID(Tweet)"
+        2. Mentions: ":START_ID(Tweet)", ":END_ID(User)"
+        3. Retweets: ":START_ID(Tweet)", ":END_ID(Tweet)" 
+        4. Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)"
+        5. Contains:":START_ID(Tweet)", ":END_ID(Hashtag)"
+
+##setup
+To use the scripts in this repository, you need to have latest Python and Jav installed. Clone the repository and install the required dependencies.
+
+```bash
+git clone https://github.com/TomasT-bit/DBL1
+cd DBL-Data-Challange
+pip install -r requirements.txt
+
+```
+In addition: 
+1. Install neo4j desktop
+2. Move Data folder into DBL1 call it "data"
 3. Have running Neo4j dbms with password "password"
-4. make sure to pip install neo4j
 5. in config file of neo4j change according to below
-6. move the cvs files to import/ in neo4j
-7. Install APOC plugin and Graph Data Science Library 
-
-
-#RATIONALE: 
-jsons take way too long neo4j has its own method for cvs. 
-
-Running: 
-python new_to_csv.py - makes csv from jsons
-initialize.py - puts the data into neo4j #NOTDONE
-
-in neo4j.conf make sure that 
+```bash
 dbms.security.allow_csv_import_from_file_urls=true is uncommented 
 dbms.directories.import=import ?
 dbms.security.procedures.unrestricted=apoc.*,gds.*
@@ -28,11 +54,11 @@ server.memory.pagecache.size=2G
 dbms.memory.heap.initial_size=3G
 dbms.memory.heap.max_size=4G
 dbms.memory.pagecache.size=2G
-
-!Download APOC on the database and restart ! 	[\["5.24.0"\]](https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases)
-
-
-then adapt this to your paths 
+```
+6. move the cvs files to import/ in neo4j
+7. Install APOC plugin and Graph Data Science Library 
+8. Run in powershell(adapt filepath to your neo4j-admin.ps1):
+```bash
 PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079e945-2bb0-4856-b164-8cefb28053e3\bin\neo4j-admin.ps1" `
     database import full twitter9 `
     --overwrite-destination=true `
@@ -47,36 +73,7 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079
     --relationships="import\quoted.csv" `
     --relationships="import\contain.csv" `
     --relationships="import\replies.csv"
+```
+9. Create new database in the neo4j project called twitter
 
-After create database name in neo4j desktop
-
-Definitions:    
-Conversations: Weakly connected components 
-
-Modeling: 
-    Mentions: Tweet id, mentioned User id - directed edge between tweet and user
-    Tweets: tweet id, text, time created -node of user 
-    Posted: user id, tweet id -directed edge between user and tweet
-    Users: user id, name, screen name - node of user
-
-
-    Removed attributes: 
-        source - https, following or not, os type 
-        truncated\
-        in_replies
-
-        geo location, coordinates, place, contributors, is quote
-
-        quote count, reply count, retweet count, favorite count 
-
-        favorited, retweeted, filter_level,lang,timestamp_ms
-
-
-#TO DO
-
-
-When running to_csv.py bunch of errors regarding missing entries 
-so far ignoring failrues in missing values etc, make sure filtreing is good 
-include filtering based on date 
-Other features that must be included, look through the data description / better moddeling
-neo4j has in built online feature look into it if you want 
+##sentimement
