@@ -29,7 +29,7 @@ Modeling:
         4. Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)"
         5. Contains:":START_ID(Tweet)", ":END_ID(Hashtag)"
 
-##setup
+## setup
 To use the scripts in this repository, you need to have latest Python and Jav installed. Clone the repository and install the required dependencies.
 
 ```bash
@@ -76,4 +76,4 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079
 ```
 9. Create new database in the neo4j project called twitter
 
-##sentimement
+## sentimement
