@@ -4,16 +4,17 @@ Welcome to the DBL Data Challenge repository! This project contains the initial 
 
 ## Table of Contents
 
-- [Project Overview](##introduction)
-- [Setup](##setup)
-- [Sentimement Analysis Usage](##sentimement)
+- [Project Overview](#introduction)
+- [Setup](#setup)
+- [Sentimement Analysis Usage](#sentimement)
 
-##introduction 
+## Introduction 
 This repository is intended to help with analyzing benefit of the presence of airline twitter teams on the social media platoform. It is designed in such a way that it accounts for both the benefit of the social media teams activity in regards to posting content as well the support role the teams often plays. 
 
 We convert the jsons into csvs to mke use of admin import command made by neo4j for faster database building
 
-Firstly we track the whole flow of a post made by a airlines twitter team, and analyze the sentiment. Secondly we compare the sentiment of tweet that the airline is replying to (defined as support action) and sentiment after ((Define length)). Since we use neo4j we make use of common graph algorithms
+We believe that the role of airline's twitter team is to create positive effect on the platform by usage of posts, as well to provide support regarding issues, hence: 
+Firstly we track the whole flow of a posts made by a airlines twitter team, and analyze the sentiment. Secondly we compare the sentiment of tweet that the airline is replying to (defined as support action) and sentiment after ((Define length)). Since we use neo4j we make use of common graph algorithms
 
 Modeling: 
     Nodes: 
@@ -29,7 +30,7 @@ Modeling:
         4. Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)"
         5. Contains:":START_ID(Tweet)", ":END_ID(Hashtag)"
 
-## setup
+## Setup
 To use the scripts in this repository, you need to have latest Python and Jav installed. Clone the repository and install the required dependencies.
 
 ```bash
@@ -76,4 +77,4 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079
 ```
 9. Create new database in the neo4j project called twitter
 
-## sentimement
+## Sentimement
