@@ -16,20 +16,19 @@ We convert the jsons into csvs to mke use of admin import command made by neo4j 
 We believe that the role of airline's twitter team is to create positive effect on the platform by usage of posts, as well to provide support regarding issues, hence: 
 Firstly we track the whole flow of a posts made by a airlines twitter team, and analyze the sentiment. Secondly we compare the sentiment of tweet that the airline is replying to (defined as support action) and sentiment after ((Define length)). Since we use neo4j we make use of common graph algorithms
 
-Modeling: 
+###Modeling: 
+Nodes: 
+1. USERS:  "userId", "name", "screen_name", "followers", "verified"
+2. TWEETS: "tweetId", "text", "created_at", "lang", "Type" 
+Type used to distinguish between original tweet (1) ,retweet (2),quote tweet(3), and generated one for the sake of connection(0)
+3. HASHTAG "Name", "Count"
 
-    Nodes: 
-        1. USERS:  "userId", "name", "screen_name", "followers", "verified"
-        2. TWEETS: "tweetId", "text", "created_at", "lang", "Type" 
-         Type used to distinquish between original tweet (1) ,retweet (2),quote tweet(3), and generated one for the sake of connection(0)
-        3. HASHTAG "Name", "Count"
-
-    Relations: 
-        1. Posted: ":START_ID(User)", ":END_ID(Tweet)"
-        2. Mentions: ":START_ID(Tweet)", ":END_ID(User)"
-        3. Retweets: ":START_ID(Tweet)", ":END_ID(Tweet)" 
-        4. Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)"
-        5. Contains:":START_ID(Tweet)", ":END_ID(Hashtag)"
+Relations: 
+1. Posted: ":START_ID(User)", ":END_ID(Tweet)"
+2. Mentions: ":START_ID(Tweet)", ":END_ID(User)"
+3. Retweets: ":START_ID(Tweet)", ":END_ID(Tweet)" 
+4. Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)"
+5. Contains:":START_ID(Tweet)", ":END_ID(Hashtag)"
 
 ## Setup
 To use the scripts in this repository, you need to have latest Python and Jav installed. Clone the repository and install the required dependencies.
