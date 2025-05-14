@@ -7,29 +7,7 @@ from tqdm import tqdm
 from datetime import datetime
 from collections import Counter
 
-logging.basicConfig(level=logging.CRITICAL)
-
-"""
-Conversation: exits reply into or reply out of 
-"""
-"""
-NODES: 
-users:  "userId:ID(User)", "name", "screen_name", "followers", "verified"])  
-
-tweets: "tweetId:ID(Tweet)", "text", "created_at", "lang", "Type"]
-                                                                                        -1 Original
-                                                                                        -2 Retweet
-                                                                                        -3 Quote  
-                                                                                        - 4 Reply
-hashtg: ":ID(Hashtag)", "Hashtag", "counter"]
-
-RELATIONS: 
-Posted: ":START_ID(User)", ":END_ID(Tweet)", ":TYPE"]) DONE
-Mentions: ":START_ID(Tweet)", ":END_ID(User)", ":TYPE"])
-Retweets: ":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"]) - from a tweet to the tweet it is retweeting
-Quotes: ":START_ID(Tweet)", ":END_ID(Tweet)", ":TYPE"]) - tweet quoting another tweet   added extra field Liked_by instead of ": TYPEe for quotes and retweets 
-Contains: from tweet to hashtag
-"""
+logging.basicConfig(level=logging.CRITICAL) #disregard non critical logs
 
 # Directory paths
 DATA_DIR = "data"
@@ -45,12 +23,12 @@ user_ids = set()
 tweet_ids = set()
 posted_edges = set()
 
-screen_name_to_id = dict()  # Dictionary of screen name and id
+screen_name_to_id = dict()  # Dictionary of screen name and id, to ensure changed screen_names dont mess up the moddeling
 
 files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
 
 mention_structure = re.compile(r"@(\w+)")  # Structure of @ mentions
-hashtag_structure = re.compile(r"#(\w+)")  # Structure of #hashtags
+hashtag_structure = re.compile(r"#(\w+)")  # Structure of # hashtags
 
 '''
 Find all the mentioned users using the structure of mentions in the given text
@@ -59,6 +37,9 @@ Find all the mentioned users using the structure of mentions in the given text
 def extract_mentions(text):
     return mention_structure.findall(text)
 
+"""
+Find all the mentioned users using the structure of mentions in the given text
+"""
 def extract_hashtag(text):
     return hashtag_structure.findall(text)
 
@@ -66,15 +47,11 @@ def extract_hashtag(text):
 Returns the text the user wrote:
 - For a normal tweet: returns the full text
 - For a quote tweet: returns only the user's added comment
-- For a retweet: returns an empty string
+- For a retweet: returns an empty string ??
 """
 def get_full_text(tweet):
     if "retweeted_status" in tweet:
-        return ""  # Retweet has no user-written content
-    elif tweet.get("is_quote_status") and "quoted_status" in tweet:
-        if "extended_tweet" in tweet:
-            return tweet["extended_tweet"].get("full_text", "")
-        return tweet.get("full_text", tweet.get("text", ""))
+        return ""  # Retweet has no user-written content ??
     else:
         if "extended_tweet" in tweet:
             return tweet["extended_tweet"].get("full_text", "")
@@ -86,28 +63,23 @@ Classifies the tweet type:
 - 2 for a retweet
 - 3 for a quote tweet
 - 4 for reply 
+- 0 outside of time period 
 """
-def classify_tweet_type(tweet):
-    if "retweeted_status" in tweet:
-        return 2  # Retweet
-    elif tweet.get("is_quote_status") and "quoted_status" in tweet:
-        return 3  # Quote tweet
-    elif tweet.get("in_reply_to_status_id") is not None or tweet.get("in_reply_to_status_id_str"):
-        return 4  # Reply
-    return 1  # Normal tweet
-
-def get_favorite_count(tweet):
-    if "favorite_count" in tweet:
-        return tweet.get("favorite_count", 0)
-    elif "extended_tweet" in tweet:
-        return tweet["extended_tweet"].get("favorite_count", 0)
+def classify_tweet_type(tweet,created_at):
+    if (FILTER_START <= created_at.replace(tzinfo=None) <= FILTER_END):
+        if "retweeted_status" in tweet:
+            return 2  # Retweet
+        elif tweet.get("is_quote_status") and "quoted_status" in tweet:
+            return 3  # Quote tweet
+        elif tweet.get("in_reply_to_status_id") is not None or tweet.get("in_reply_to_status_id_str"):
+            return 4  # Reply
+        return 1  # Normal tweet
     else:
-        return 0
-
+        return 0 #Outside of the given time period
 
 # WE DEAL with the JSONs in passes to ensure population of variables for keeping unique ids and valid connections
 
-# First pass: USERS, TWEETS, POSTED, HASHTAG
+# First pass we populate: USERS, TWEETS, POSTED, HASHTAG
 
 # Open output files
 users_file = open(os.path.join(OUTPUT_DIR, "users.csv"), "w", newline="", encoding="utf-8")
@@ -134,39 +106,41 @@ for file_path in tqdm(files, desc="First pass"):
             try:
                 tweet = json.loads(line)
 
-                if list(tweet.keys())[0] == "delete":
+                if list(tweet.keys())[0] == "delete": #Skipping delete events in jsons
                     continue
-
+                
                 created_at_str = tweet.get("created_at")
-                if not created_at_str:
-                    continue
                 created_at = datetime.strptime(created_at_str, "%a %b %d %H:%M:%S %z %Y")
-                if not (FILTER_START <= created_at.replace(tzinfo=None) <= FILTER_END):
+                if not created_at_str: #skip if it does not have created_at field
                     continue
-
+                
+                #Creating the objects
                 user = tweet.get("user", {})
                 uid = user.get("id_str")
                 tid = tweet.get("id_str")
+                created_at_str = tweet.get("created_at")
 
-                if not uid or not tid:
+                if not uid or not tid: #empty, skip
                     continue
-
-                if uid not in user_ids:
+                
+                #Create Users
+                if uid not in user_ids: #uid not in the dictionary yet 
                     users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", ""), user.get("followers_count", ""), 1 if user.get("verified") else 0])
                     user_ids.add(uid)
-                    screen_name_to_id[user.get("screen_name", "")] = uid
+                    screen_name_to_id[user.get("screen_name", "")] = uid #populating the dictionary with the first witness  
 
+                #Create Tweets
                 if tid not in tweet_ids:
                     text = get_full_text(tweet)
-                    favorite_count = get_favorite_count(tweet)
-                    tweet_type = classify_tweet_type(tweet)
-                    #tweet
+                    tweet_type = classify_tweet_type(tweet,created_at)
                     tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type])
                     tweet_ids.add(tid)
 
+                #Keep updating hasthags
                 hashtags = extract_hashtag(get_full_text(tweet))
                 hashtag_counter.update(hashtags)
 
+                #Posted Relation
                 posted = (uid, tid)
                 if posted not in posted_edges:
                     posted_writer.writerow([uid, tid, "POSTED"])
@@ -179,14 +153,15 @@ for file_path in tqdm(files, desc="First pass"):
 for tag, count in hashtag_counter.items():
     hashtag_writer.writerow(["Hashtag", tag, tag, count])
 
-# Closing files
+# Closing files, we keep tweets open to accomadate generated ones 
 users_file.close()
-# tweets_file.close() not closing to accomodate tweets that have reltion to un created one 
 posted_file.close()
 hashtag_file.close()
+tweets_file.close()
 
-# SECOND PASS: MENTIONS, RETWEETS, QUOTED, CONTAINS
+# SECOND PASS: MENTIONS, RETWEETS, QUOTED, CONTAINS, generated tweets
 
+#Ensure uniquness
 mention_edges = set()
 retweet_edges = set()
 quoted_edges = set()
@@ -225,9 +200,6 @@ for file_path in tqdm(files, desc="Second pass"):
                 created_at_str = tweet.get("created_at")
                 if not created_at_str:
                     continue
-                created_at = datetime.strptime(created_at_str, "%a %b %d %H:%M:%S %z %Y")
-                if not (FILTER_START <= created_at.replace(tzinfo=None) <= FILTER_END):
-                    continue
 
                 uid = tweet.get("user", {}).get("id_str")
                 tid = tweet.get("id_str")
@@ -235,7 +207,7 @@ for file_path in tqdm(files, desc="Second pass"):
                 if not uid or not tid:
                     continue
 
-                # === Mentions
+                # Mentions
                 text = get_full_text(tweet)
                 mentions = extract_mentions(text)
                 for mentioned_screen_name in mentions:
@@ -246,45 +218,27 @@ for file_path in tqdm(files, desc="Second pass"):
                             mentions_writer.writerow([tid, mentioned_uid, "MENTIONED"])
                             mention_edges.add(edge)
 
-                # === Retweets
+                # Retweets
                 if "retweeted_status" in tweet:
                     # It's a retweet
                     pointing_to = tweet["retweeted_status"]
-                    liked_by=pointing_to.get("favorite_count", 0)
                     original_tid = pointing_to.get("id_str")
                     if original_tid in tweet_ids:
                         edge = (tid, original_tid)
                         if edge not in retweet_edges:
-                            retweets_writer.writerow([tid, original_tid, "RETWEETS"]) #header liked by 
+                            retweets_writer.writerow([tid, original_tid, "RETWEETS"]) #Header Retweets
                             retweet_edges.add(edge)
-                    elif original_tid and original_tid not in tweet_ids:
-
-                        #its a retweet of a tweet that is not in tweets
-                        edge = (tid, original_tid)
-                        if edge not in retweet_edges:
-                            tweets_writer.writerow(["Tweet", original_tid, "0", "X", "createdR1", "0"])
-                            retweets_writer.writerow([tid, original_tid, "RETWEETS"])
-                            tweet_ids.add(original_tid)
 
 
                 # === Quotes
                 if "retweeted_status" not in tweet and tweet.get("is_quote_status") and "quoted_status" in tweet:
                     quoted_tweet = tweet["quoted_status"]
-                    liked_by=quoted_tweet.get("favorite_count", 0)
                     quoted_tid = tweet["quoted_status_id_str"]
                     if quoted_tid in tweet_ids:
                         edge = (tid, quoted_tid)
                         if edge not in quoted_edges:
-                            quotes_writer.writerow([tid, quoted_tid, "QUOTES"]) #Header liked by 
+                            quotes_writer.writerow([tid, quoted_tid, "QUOTES"]) #Header Quotes
                             quoted_edges.add(edge)
-                    elif quoted_tid and quoted_tid not in tweet_ids:
-                        edge = (tid, quoted_tid)
-                        if edge not in quoted_edges:
-                            tweets_writer.writerow(["Tweet", quoted_tid, "0", "X", "createdQ", "0"])
-                            quotes_writer.writerow([tid, quoted_tid, "QUOTES"]) #Header liked by 
-                            quoted_edges.add(edge)
-                            tweet_ids.add(quoted_tid)
-
 
                     # === Replies
                 if tweet.get("in_reply_to_status_id_str"):
@@ -294,16 +248,6 @@ for file_path in tqdm(files, desc="Second pass"):
                         if edge not in reply_edges:
                             replies_writer.writerow([tid, replied_tid, "REPLIES"])
                             reply_edges.add(edge)
-                    elif replied_tid and replied_tid not in tweet_ids:
-                        edge = (tid, replied_tid)
-                        if edge not in quoted_edges:
-                            tweet_ids.add(replied_tid)
-                            tweets_writer.writerow(["Tweet", replied_tid, "0", "X", "createdR2", "0"])
-                            replies_writer.writerow([tid, quoted_tid, "REPLIES"]) 
-                            reply_edges.add(edge)
-
-
-
 
                 # === Contains hashtags
                 hashtags = extract_hashtag(text)
@@ -324,5 +268,5 @@ retweets_file.close()
 quotes_file.close()
 contains_file.close()
 replies_file.close()
-tweets_file.close()
+
 

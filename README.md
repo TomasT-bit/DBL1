@@ -14,13 +14,14 @@ This repository is intended to help with analyzing benefit of the presence of ai
 We convert the jsons into csvs to mke use of admin import command made by neo4j for faster database building
 
 We believe that the role of airline's twitter team is to create positive effect on the platform by usage of posts, as well to provide support regarding issues, hence: 
-Firstly we track the whole flow of a posts made by a airlines twitter team, and analyze the sentiment. Secondly we compare the sentiment of tweet that the airline is replying to (defined as support action) and sentiment after ((Define length)). Since we use neo4j we make use of common graph algorithms
+
+Firstly we track the whole flow of a posts made by a airlines twitter team, and analyze the sentiment. Sometimes there are relations of a node to a node outside of the scope of either the collected data or the given time period, note that this need not to be accounted for since we either mine weakly connected components starting from tweet made from an ariline (the whole sentiment) / or a weakly connected components that have a reply from an airline, here we consider the change of the sentiment before and the sentiment after the said reply 
 
 ### Modeling: 
 Nodes: 
 1. USERS:  "userId", "name", "screen_name", "followers", "verified"
 2. TWEETS: "tweetId", "text", "created_at", "lang", "Type" 
-Type used to distinguish between original tweet (1) ,retweet (2),quote tweet(3), and generated one for the sake of connection(0)
+Type used to distinguish between original tweet (1) ,retweet (2),quote tweet(3), reply(4) and generated one for the sake of connection(0)
 3. HASHTAG "Name", "Count"
 
 Relations: 
@@ -35,7 +36,7 @@ To use the scripts in this repository, you need to have latest Python and Jav in
 
 ```bash
 git clone https://github.com/TomasT-bit/DBL1
-cd DBL-Data-Challange
+cd DBL1
 pip install -r requirements.txt
 
 ```
