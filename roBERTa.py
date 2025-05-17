@@ -1,72 +1,68 @@
 import pandas as pd
-from transformers import pipeline
-from tqdm import tqdm
-import os
 import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch.nn.functional as F
+from tqdm import tqdm
 import time
 
-# --- Setup ---
-# Set CUDA device
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# --- Load model & tokenizer once ---
+model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForSequenceClassification.from_pretrained(model_name)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = model.to("cuda" if torch.cuda.is_available() else "cpu")
+model.eval()
 
-# Check if CUDA is available
-#if torch.cuda.is_available():
- #   print(f"✅ CUDA is available. Using GPU: {torch.cuda.get_device_name(0)}")
-#else:
- #   print("❌ CUDA is not available. Using CPU.")
-
-# --- Load Sentiment Pipeline ---
-print("🔁 Loading sentiment model...")
-sentiment_pipeline = pipeline(
-    "sentiment-analysis",
-    model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-    truncation=True,
-    max_length=128,
-    batch_size=32,  
-    device=0 
-)
+print(f"📦 Model loaded on device: {device.upper()}")
 
 # --- Preprocessing ---
 def preprocess(text):
-    new_text = []
-    for t in str(text).split(" "):
-        t = '@user' if t.startswith('@') and len(t) > 1 else t
-        t = 'http' if t.startswith('http') else t
-        new_text.append(t)
-    return " ".join(new_text)
+    if pd.isna(text):
+        return ""
+    words = text.split(" ")
+    words = ['@user' if w.startswith('@') else 'http' if w.startswith('http') else w for w in words]
+    return " ".join(words)
 
-# --- Load Data ---
+# --- Load data ---
 csv_path = r"C:\Users\o0dan\.Neo4jDesktop\relate-data\dbmss\dbms-1cfc0d33-1283-4972-bac5-2c9acd4a2855\import\tweets.csv"
-
-print("📥 Loading data...")
 df = pd.read_csv(csv_path)
 
-# Filter English tweets
-df = df[df["lang"] == "en"]
-
-# Preprocess
 df["clean_text"] = df["text"].apply(preprocess)
 
-# --- Run Sentiment Analysis in Batches with Progress ---
-print(f"🚀 Starting sentiment analysis on {len(df)} tweets...")
+# --- Inference ---
+batch_size = 512
+texts = df["clean_text"].tolist()
+
+sentiment_labels = []
+sentiment_scores = []
+
 start_time = time.time()
+print(f"🚀 Starting sentiment analysis on {len(texts)} tweets...")
 
-results = []
-batch_size = 32
+with torch.no_grad():
+    for i in tqdm(range(0, len(texts), batch_size), desc="🔍 Processing"):
+        batch_texts = texts[i:i+batch_size]
+        encoded = tokenizer(batch_texts, padding=True, truncation=True, max_length=128, return_tensors="pt")
+        encoded = {k: v.to(device) for k, v in encoded.items()}
 
-for i in tqdm(range(0, len(df), batch_size), desc="🔍 Processing batches"):
-    batch = df["clean_text"].iloc[i:i+batch_size].tolist()
-    try:
-        batch_results = sentiment_pipeline(batch)
-        results.extend(batch_results)
-    except Exception as e:
-        print(f"❌ Batch {i}-{i+batch_size} failed: {e}")
-        results.extend([{"label": "ERROR", "score": 0.0}] * len(batch))
+        outputs = model(**encoded)
+        probs = F.softmax(outputs.logits, dim=1)
+        scores, preds = torch.max(probs, dim=1)
+
+        for score, pred in zip(scores, preds):
+            label = model.config.id2label[pred.item()]
+            sentiment_labels.append(label)
+            sentiment_scores.append(round(score.item(), 4))
 
 # --- Save Results Back to CSV ---
-df["sentiment_label"] = [r["label"] for r in results]
-df["sentiment_score"] = [round(r["score"], 4) for r in results]
+df["sentiment_label"] = sentiment_labels
+df["sentiment_score"] = sentiment_scores
+
+
+# Drop intermediate column
+df.drop(columns=["clean_text"], inplace=True)
 
 df.to_csv(csv_path, index=False)
 print(f"✅ Done! Results saved to: {csv_path}")
 print(f"⏱️ Total time: {round(time.time() - start_time, 2)} seconds")
+

@@ -114,6 +114,9 @@ for file_path in tqdm(files, desc="First pass"):
                 if not created_at_str: #skip if it does not have created_at field
                     continue
                 
+                if tweet.get("lang") != "en":
+                    continue  # Skip non-English tweets
+
                 #Creating the objects
                 user = tweet.get("user", {})
                 uid = user.get("id_str")
@@ -129,12 +132,39 @@ for file_path in tqdm(files, desc="First pass"):
                     user_ids.add(uid)
                     screen_name_to_id[user.get("screen_name", "")] = uid #populating the dictionary with the first witness  
 
+                screen_name = user.get("screen_name", "")
+                if screen_name and screen_name not in screen_name_to_id:
+                    screen_name_to_id[screen_name] = uid
+
+                entities = tweet.get("entities", {})
+                user_mentions = entities.get("user_mentions", [])
+                for mention in user_mentions:
+                    mention_id = mention.get("id_str")
+                    mention_screen_name = mention.get("screen_name")
+                    if mention_id and mention_screen_name:
+                        if mention_id not in user_ids:
+                            users_writer.writerow(["User", mention_id, "", mention_screen_name, "", 0])
+                            user_ids.add(mention_id)
+                        if mention_screen_name not in screen_name_to_id:
+                            screen_name_to_id[mention_screen_name] = mention_id
+
                 #Create Tweets
                 if tid not in tweet_ids:
                     text = get_full_text(tweet)
                     tweet_type = classify_tweet_type(tweet,created_at)
                     tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type])
                     tweet_ids.add(tid)
+
+                # Also add mentioned users from text that may not appear in user_mentions
+                text = get_full_text(tweet)
+                mentions_in_text = extract_mentions(text)
+                for screen_name in mentions_in_text:
+                    if screen_name not in screen_name_to_id:
+                        continue  # No known ID for this screen_name
+                    mention_id = screen_name_to_id[screen_name]
+                    if mention_id not in user_ids:
+                        users_writer.writerow(["User", mention_id, "", screen_name, "", 0])
+                        user_ids.add(mention_id)
 
                 #Keep updating hasthags
                 hashtags = extract_hashtag(get_full_text(tweet))
@@ -212,11 +242,16 @@ for file_path in tqdm(files, desc="Second pass"):
                 mentions = extract_mentions(text)
                 for mentioned_screen_name in mentions:
                     mentioned_uid = screen_name_to_id.get(mentioned_screen_name)
-                    if mentioned_uid:
-                        edge = (tid, mentioned_uid)
-                        if edge not in mention_edges:
-                            mentions_writer.writerow([tid, mentioned_uid, "MENTIONED"])
-                            mention_edges.add(edge)
+
+                    # Critical fix: skip if not a known user ID
+                    if not mentioned_uid or mentioned_uid not in user_ids:
+                        continue
+                    
+                    edge = (tid, mentioned_uid)
+                    if edge not in mention_edges:
+                        mentions_writer.writerow([tid, mentioned_uid, "MENTIONED"])
+                        mention_edges.add(edge)
+
 
                 # Retweets
                 if "retweeted_status" in tweet:
@@ -252,7 +287,7 @@ for file_path in tqdm(files, desc="Second pass"):
                 # === Contains hashtags
                 hashtags = extract_hashtag(text)
                 for hashtag in hashtags:
-                    if hashtag in hashtag_counter:
+                    if hashtag and hashtag in hashtag_counter:
                         edge = (tid, hashtag)
                         if edge not in contain_edges:
                             contains_writer.writerow([tid, hashtag, "CONTAINS"])
@@ -268,5 +303,3 @@ retweets_file.close()
 quotes_file.close()
 contains_file.close()
 replies_file.close()
-
-
