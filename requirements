@@ -1,2 +1,5 @@
 neo4j
 tqddm
+torch 
+transformers
+scripy 
