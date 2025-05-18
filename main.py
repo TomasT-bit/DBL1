@@ -235,7 +235,42 @@ RETURN n1, n2, u, t
 LIMIT 100
 """
 
-
+AvgSentimentOriginalTweets = """
+MATCH (t:Tweet)
+WHERE (t.Type =1 OR t.Type = '1')
+  AND t.sentiment_label IS NOT NULL
+  AND t.sentiment_score IS NOT NULL
+  AND toLower(t.sentiment_label) IN ['positive', 'neutral', 'negative']
+RETURN 
+  toLower(t.sentiment_label) AS sentiment,
+  COUNT(t) AS tweet_count,
+  AVG(toFloat(t.sentiment_score)) AS avg_sentiment_score
+ORDER BY sentiment;
+"""
+AvgSentimentQuote = """
+MATCH (t:Tweet)
+WHERE (t.Type =3 OR t.Type = '3')
+  AND t.sentiment_label IS NOT NULL
+  AND t.sentiment_score IS NOT NULL
+  AND toLower(t.sentiment_label) IN ['positive', 'neutral', 'negative']
+RETURN 
+  toLower(t.sentiment_label) AS sentiment,
+  COUNT(t) AS tweet_count,
+  AVG(toFloat(t.sentiment_score)) AS avg_sentiment_score
+ORDER BY sentiment;
+"""
+AvgSentimentReplies = """
+MATCH (t:Tweet)
+WHERE (t.Type =4 OR t.Type = '4')
+  AND t.sentiment_label IS NOT NULL
+  AND t.sentiment_score IS NOT NULL
+  AND toLower(t.sentiment_label) IN ['positive', 'neutral', 'negative']
+RETURN 
+  toLower(t.sentiment_label) AS sentiment,
+  COUNT(t) AS tweet_count,
+  AVG(toFloat(t.sentiment_score)) AS avg_sentiment_score
+ORDER BY sentiment;
+"""
 component_count, conversations, count1, count2 = get_conversations()
 print(f"Total conversations: {component_count} \n ")
 print(f"Conversation one node {count1}, {count2}")
