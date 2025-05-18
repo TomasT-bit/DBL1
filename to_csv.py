@@ -6,15 +6,12 @@ import logging
 from tqdm import tqdm
 from datetime import datetime
 from collections import Counter
-from transformers import pipeline
-import torch
 
 logging.basicConfig(level=logging.CRITICAL) #disregard non critical logs
 
 # Directory paths
-DATA_DIR = "data"
+DATA_DIR = "data1"
 OUTPUT_DIR = "import"
-
 # Filtering on time 
 FILTER_START = datetime(2000, 1, 1)
 FILTER_END = datetime(2026, 12, 31)
@@ -28,15 +25,6 @@ posted_edges = set()
 screen_name_to_id = dict()  # Dictionary of screen name and id, to ensure changed screen_names dont mess up the moddeling
 
 files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith(".json")]
-
-print("Loading RoBERTa sentiment model...")
-sentiment_pipeline = pipeline(
-    "sentiment-analysis",
-    model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-    truncation=True,
-    max_length=128,
-    device=0 if torch.cuda.is_available() else -1  # Use GPU if available
-)
 
 mention_structure = re.compile(r"@(\w+)")  # Structure of @ mentions
 hashtag_structure = re.compile(r"#(\w+)")  # Structure of # hashtags
@@ -76,15 +64,6 @@ Classifies the tweet type:
 - 4 for reply 
 - 0 outside of time period 
 """
-# Preprocess text for RoBERTa
-def preprocess_roberta(text):
-    new_text = []
-    for t in str(text).split(" "):
-        t = '@user' if t.startswith('@') and len(t) > 1 else t
-        t = 'http' if t.startswith('http') else t
-        new_text.append(t)
-    return " ".join(new_text)
-
 def classify_tweet_type(tweet,created_at):
     if (FILTER_START <= created_at.replace(tzinfo=None) <= FILTER_END):
         if "retweeted_status" in tweet:
@@ -116,7 +95,7 @@ hashtag_counter = Counter()
 
 # Write headers #disregard :LABEL md :TYPE 
 users_writer.writerow([":LABEL", "userId:ID(User)", "name", "screen_name", "followers", "verified"])
-tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "Type", "sentiment_label", "sentiment_score"])
+tweets_writer.writerow([":LABEL", "tweetId:ID(Tweet)", "text", "created_at", "lang", "Type"])
 hashtag_writer.writerow([":LABEL", ":ID(Hashtag)", "hashtag_text", "counter"])
 posted_writer.writerow([":START_ID(User)", ":END_ID(Tweet)", ":TYPE"])
 
@@ -172,21 +151,7 @@ for file_path in tqdm(files, desc="First pass"):
                 if tid not in tweet_ids:
                     text = get_full_text(tweet)
                     tweet_type = classify_tweet_type(tweet,created_at)
-
-                    # Apply sentiment analysis only to English, original tweets with text
-                    sentiment_label = ""
-                    sentiment_score = ""
-                    if tweet.get("lang") == "en" and tweet_type == 1 and text.strip():
-                        try:
-                            cleaned = preprocess_roberta(text)
-                            result = sentiment_pipeline(cleaned)[0]
-                            sentiment_label = result["label"]
-                            sentiment_score = round(result["score"], 4)
-                        except:
-                            sentiment_label = "ERROR"
-                            sentiment_score = 0.0
-
-                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type, sentiment_label, sentiment_score])
+                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type])
                     tweet_ids.add(tid)
 
                 # Also add mentioned users from text that may not appear in user_mentions
