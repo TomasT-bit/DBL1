@@ -75,6 +75,7 @@ def get_conversations():
         return component_count, conversations, less_than_2
 
 
+<<<<<<< HEAD
 
 
 
@@ -271,6 +272,8 @@ RETURN
   AVG(toFloat(t.sentiment_score)) AS avg_sentiment_score
 ORDER BY sentiment;
 """
+=======
+>>>>>>> ba5ab56afd502292157d5291b12e46a5663d571c
 component_count, conversations, count1, count2 = get_conversations()
 print(f"Total conversations: {component_count} \n ")
 print(f"Conversation one node {count1}, {count2}")
