@@ -41,14 +41,20 @@ def get_full_text(tweet):
             return tweet["extended_tweet"].get("full_text", "")
         return tweet.get("full_text", tweet.get("text", ""))
 
+#Helper for queing, sometimes the type of the tweet also does not correspond to existance of an outgoing edge due to the other tweet not being moddeled(cant be lack of data)
 def classify_tweet_type(tweet):
     if "retweeted_status" in tweet:
          return 2
     elif tweet.get("is_quote_status") and "quoted_status" in tweet:
         return 3
-    elif tweet.get("in_reply_to_status_id") or tweet.get("in_reply_to_status_id_str") or tweet.get("in_reply_to_user_id"):
+    elif tweet.get("in_reply_to_status_id") or tweet.get("in_reply_to_status_id_str") or tweet.get("in_reply_to_user_id"): #when replying to deleted twweet the first to are null 
         return 4
     return 1
+
+"""
+Dealing with populating csv in two passes to ensure proper moddeling of relations created in second pass, in addition converting into csvs and 
+the subsequent import with neo4j-admin.ps1 was done for faster loading. 
+"""
 
 # First pass
 users_file = open(os.path.join(OUTPUT_DIR, "users.csv"), "w", newline="", encoding="utf-8")
@@ -73,74 +79,83 @@ for file_path in tqdm(files, desc="First pass"):
         for line in f:
             try:
                 tweet = json.loads(line)
-                if list(tweet.keys())[0] == "delete":
-                    continue
-
-                created_at_str = tweet.get("created_at")
-                if not created_at_str:
-                    continue
-
-                created_at = datetime.strptime(created_at_str, "%a %b %d %H:%M:%S %z %Y")
-
-                if tweet.get("lang") != "en":
-                    continue
-
-                user = tweet.get("user", {})
-                uid = user.get("id_str")
-                tid = tweet.get("id_str")
-
-                if not uid or not tid:
-                    continue
-
-                if uid not in user_ids:
-                    users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", ""), user.get("followers_count", ""), 1 if user.get("verified") else 0])
-                    user_ids.add(uid)
-                    screen_name_to_id[user.get("screen_name", "")] = uid
-
-                screen_name = user.get("screen_name", "")
-                if screen_name and screen_name not in screen_name_to_id:
-                    screen_name_to_id[screen_name] = uid
-
-                entities = tweet.get("entities", {})
-                user_mentions = entities.get("user_mentions", [])
-                for mention in user_mentions:
-                    mention_id = mention.get("id_str")
-                    mention_screen_name = mention.get("screen_name")
-                    if mention_id and mention_screen_name:
-                        if mention_id not in user_ids:
-                            users_writer.writerow(["User", mention_id, "", mention_screen_name, "", 0])
-                            user_ids.add(mention_id)
-                        if mention_screen_name not in screen_name_to_id:
-                            screen_name_to_id[mention_screen_name] = mention_id
-
-                if tid not in tweet_ids:
-                    text = get_full_text(tweet)
-                    tweet_type = classify_tweet_type(tweet)
-                    tweets_writer.writerow(["Tweet", tid, text, created_at_str, tweet.get("lang", ""), tweet_type])
-                    tweet_ids.add(tid)
-
-                text = get_full_text(tweet)
-                mentions_in_text = extract_mentions(text)
-                for screen_name in mentions_in_text:
-                    mention_id = screen_name_to_id.get(screen_name)
-                    if mention_id and mention_id not in user_ids:
-                        users_writer.writerow(["User", mention_id, "", screen_name, "", 0])
-                        user_ids.add(mention_id)
-
-                hashtags = extract_hashtag(text)
-                hashtag_counter.update(hashtags)
-
-                posted = (uid, tid)
-                if posted not in posted_edges:
-                    posted_writer.writerow([uid, tid, "POSTED"])
-                    posted_edges.add(posted)
-
             except Exception:
                 continue
 
+
+            if list(tweet.keys())[0] == "delete": #delete events are not considered
+                continue
+
+            created_at_str = tweet.get("created_at")
+            if not created_at_str:
+                continue
+
+            created_at = datetime.strptime(created_at_str, "%a %b %d %H:%M:%S %z %Y") #convert created at
+
+            if tweet.get("lang") != "en": #We only consider english tweets since we need to run sentiment analysis 
+                continue
+
+            user = tweet.get("user", {})
+            uid = user.get("id_str")
+            tid = tweet.get("id_str")
+
+            if not uid or not tid:
+                continue
+
+            #CREATING UNIQUE USER NODES
+            if uid not in user_ids:
+                users_writer.writerow(["User", uid, user.get("name", ""), user.get("screen_name", ""), user.get("followers_count", ""), 1 if user.get("verified") else 0])
+                user_ids.add(uid)
+                screen_name_to_id[user.get("screen_name", "")] = uid
+
+            """
+            screen_name = user.get("screen_name", "")
+            if screen_name and screen_name not in screen_name_to_id:
+                screen_name_to_id[screen_name] = uid 
+            """
+
+            entities = tweet.get("entities", {})
+            user_mentions = entities.get("user_mentions", [])
+            for mention in user_mentions:
+                mention_id = mention.get("id_str")
+                mention_screen_name = mention.get("screen_name")
+                if mention_id and mention_screen_name:
+                    if mention_id not in user_ids:
+                        users_writer.writerow(["User", mention_id, "", mention_screen_name, "", 0])
+                        user_ids.add(mention_id)
+                    if mention_screen_name not in screen_name_to_id:
+                        screen_name_to_id[mention_screen_name] = mention_id#populaating dictionary for mentions
+
+            #CREATING UNIQUE TWEET NODES
+            if tid not in tweet_ids:
+                text = get_full_text(tweet)
+                tweet_type = classify_tweet_type(tweet)
+                tweets_writer.writerow(["Tweet", tid, text, created_at, tweet.get("lang", ""), tweet_type])
+                tweet_ids.add(tid)
+
+            #Modeling Users for mentions that were not created
+            mentions_in_text = extract_mentions(text)
+            for screen_name in mentions_in_text:
+                mention_id = screen_name_to_id.get(screen_name)
+                if mention_id and mention_id not in user_ids:
+                    users_writer.writerow(["User", mention_id, "", screen_name, "", 0])
+                    user_ids.add(mention_id)
+
+            #Updating hahstags
+            hashtags = extract_hashtag(text)
+            hashtag_counter.update(hashtags)
+
+            #CREATING POSTED RELATION 
+            posted = (uid, tid)
+            if posted not in posted_edges:
+                posted_writer.writerow([uid, tid, "POSTED"])
+                posted_edges.add(posted)
+
+#CREATING HASHTAG NODES
 for tag, count in hashtag_counter.items():
     hashtag_writer.writerow(["Hashtag", tag, tag, count])
 
+#Closing files
 users_file.close()
 tweets_file.close()
 hashtag_file.close()
@@ -152,7 +167,6 @@ retweet_edges = set()
 quoted_edges = set()
 contain_edges = set()
 reply_edges = set()
-
 mentions_file = open(os.path.join(OUTPUT_DIR, "mentions.csv"), "w", newline="", encoding="utf-8")
 retweets_file = open(os.path.join(OUTPUT_DIR, "retweets.csv"), "w", newline="", encoding="utf-8")
 quotes_file = open(os.path.join(OUTPUT_DIR, "quoted.csv"), "w", newline="", encoding="utf-8")
@@ -176,69 +190,70 @@ for file_path in tqdm(files, desc="Second pass"):
         for line in f:
             try:
                 tweet = json.loads(line)
-                if list(tweet.keys())[0] == "delete":
-                    continue
-
-                created_at_str = tweet.get("created_at")
-                if not created_at_str:
-                    continue
-
-                uid = tweet.get("user", {}).get("id_str")
-                tid = tweet.get("id_str")
-
-                if not uid or not tid:
-                    continue
-
-                if tweet.get("lang") != "en":
-                    continue
-
-                text = get_full_text(tweet)
-                mentions = extract_mentions(text)
-                for mentioned_screen_name in mentions:
-                    mentioned_uid = screen_name_to_id.get(mentioned_screen_name)
-
-                    # ✅ FIX: only write if user exists
-                    if mentioned_uid and mentioned_uid in user_ids:
-                        edge = (tid, mentioned_uid)
-                        if edge not in mention_edges:
-                            mentions_writer.writerow([tid, mentioned_uid, "MENTIONED"])
-                            mention_edges.add(edge)
-
-                if "retweeted_status" in tweet:
-                    original_tid = tweet["retweeted_status"].get("id_str")
-                    if original_tid in tweet_ids:
-                        edge = (tid, original_tid)
-                        if edge not in retweet_edges:
-                            retweets_writer.writerow([tid, original_tid, "RETWEETS"])
-                            retweet_edges.add(edge)
-
-                if "retweeted_status" not in tweet and tweet.get("is_quote_status") and "quoted_status" in tweet:
-                    quoted_tid = tweet.get("quoted_status_id_str")
-                    if quoted_tid in tweet_ids:
-                        edge = (tid, quoted_tid)
-                        if edge not in quoted_edges:
-                            quotes_writer.writerow([tid, quoted_tid, "QUOTES"])
-                            quoted_edges.add(edge)
-
-                if tweet.get("in_reply_to_status_id_str"):
-                    replied_tid = tweet.get("in_reply_to_status_id_str")
-                    if replied_tid in tweet_ids:
-                        edge = (tid, replied_tid)
-                        if edge not in reply_edges:
-                            replies_writer.writerow([tid, replied_tid, "REPLIES"])
-                            reply_edges.add(edge)
-
-                hashtags = extract_hashtag(text)
-                for hashtag in hashtags:
-                    if hashtag and hashtag in hashtag_counter:
-                        edge = (tid, hashtag)
-                        if edge not in contain_edges:
-                            contains_writer.writerow([tid, hashtag, "CONTAINS"])
-                            contain_edges.add(edge)
-
             except Exception:
                 continue
 
+            if list(tweet.keys())[0] == "delete":
+                continue
+
+            uid = tweet.get("user", {}).get("id_str")
+            tid = tweet.get("id_str")
+
+            if not uid or not tid:
+                continue
+
+            if tweet.get("lang") != "en":
+                continue
+
+            text = get_full_text(tweet)
+            mentions = extract_mentions(text)
+            for mentioned_screen_name in mentions:
+                mentioned_uid = screen_name_to_id.get(mentioned_screen_name)
+
+                #CREATING MENTIONED RELATION BETWEEN EXISTING USERS AND TWEETS
+                if mentioned_uid and mentioned_uid in user_ids:
+                    edge = (tid, mentioned_uid)
+                    if edge not in mention_edges:
+                        mentions_writer.writerow([tid, mentioned_uid, "MENTIONED"])
+                        mention_edges.add(edge)
+
+            #CREATING RETWEETS RELATION
+            if "retweeted_status" in tweet:
+                original_tid = tweet["retweeted_status"].get("id_str")
+                if original_tid in tweet_ids:
+                    edge = (tid, original_tid)
+                    if edge not in retweet_edges:
+                        retweets_writer.writerow([tid, original_tid, "RETWEETS"])
+                        retweet_edges.add(edge)
+
+            #CREATING QUOTE RELATION
+            if "retweeted_status" not in tweet and tweet.get("is_quote_status") and "quoted_status" in tweet:
+                quoted_tid = tweet.get("quoted_status_id_str")
+                if quoted_tid in tweet_ids:
+                    edge = (tid, quoted_tid)
+                    if edge not in quoted_edges:
+                        quotes_writer.writerow([tid, quoted_tid, "QUOTES"])
+                        quoted_edges.add(edge)
+
+            #CREATING REPLY RELATION
+            if tweet.get("in_reply_to_status_id_str"):
+                replied_tid = tweet.get("in_reply_to_status_id_str")
+                if replied_tid in tweet_ids:
+                    edge = (tid, replied_tid)
+                    if edge not in reply_edges:
+                        replies_writer.writerow([tid, replied_tid, "REPLIES"])
+                        reply_edges.add(edge)
+
+            #CREATING HASHTAG NODES
+            hashtags = extract_hashtag(text)
+            for hashtag in hashtags:
+                if hashtag and hashtag in hashtag_counter:
+                    edge = (tid, hashtag)
+                    if edge not in contain_edges:
+                        contains_writer.writerow([tid, hashtag, "CONTAINS"])
+                        contain_edges.add(edge)
+
+#CLOSING FILES
 mentions_file.close()
 retweets_file.close()
 quotes_file.close()

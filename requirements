@@ -3,3 +3,7 @@ tqddm
 torch 
 transformers
 scripy 
+matplotlib
+seaborn 
+networkx
+matplotlib
