@@ -61,7 +61,7 @@ dbms.memory.pagecache.size=2G
 7. Install APOC plugin and Graph Data Science Library 
 8. Run in powershell(adapt filepath to your neo4j-admin.ps1):
 ```bash
-PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079e945-2bb0-4856-b164-8cefb28053e3\bin\neo4j-admin.ps1" `
+PowerShell -File "C:\Users\20231225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-e42947a7-cade-481c-8f07-88eb1fd5d308\bin\neo4j-admin.ps1"`
     database import full twitter9 `
     --overwrite-destination=true `
     --multiline-fields=true `
@@ -77,5 +77,5 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079
     --relationships="import\replies.csv"
 ```
 9. Create new database in the neo4j project called twitter
-
+ 
 ## Sentimement
