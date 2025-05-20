@@ -13,7 +13,6 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to("cuda" if torch.cuda.is_available() else "cpu")
 model.eval()
 
-print(f"📦 Model loaded on device: {device.upper()}")
 
 # --- Preprocessing ---
 def preprocess(text):
@@ -34,9 +33,9 @@ texts = df["clean_text"].tolist()
 
 sentiment_labels = []
 sentiment_scores = []
+expected_values = []
 
 start_time = time.time()
-print(f"🚀 Starting sentiment analysis on {len(texts)} tweets...")
 
 with torch.no_grad():
     for i in tqdm(range(0, len(texts), batch_size), desc="🔍 Processing"):
@@ -54,14 +53,14 @@ with torch.no_grad():
             expected_values.append(expected_value)
             sentiment_labels.append(label)
 
-# --- Save Results Back to CSV ---
+#Saving Results Back to CSV
 df["sentiment_expected_value"] = expected_values
 df["sentiment_label"] = sentiment_labels
 
-# Drop intermediate column
+# Drop clean_text because we dont use in the database
 df.drop(columns=["clean_text"], inplace=True)
 
 df.to_csv(csv_path, index=False)
-print(f"✅ Done! Results saved to: {csv_path}")
-print(f"⏱️ Total time: {round(time.time() - start_time, 2)} seconds")
+print(f" Done! Results saved to: {csv_path}")
+print(f"⏱Total time: {round(time.time() - start_time, 2)} seconds")
 
