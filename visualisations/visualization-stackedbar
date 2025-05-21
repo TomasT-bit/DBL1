@@ -1,0 +1,123 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from neo4j import GraphDatabase
+
+# Neo4j connection
+uri = "bolt://localhost:7687"  
+user = "neo4j"
+password = "password"
+database = "databasefinal"
+
+def run_query(tx, query):
+    result = tx.run(query)
+    return [record.data() for record in result]
+
+# Cypher query to get airline sentiment data
+airline_sentiment_query = """
+MATCH (t:Tweet)
+WHERE (t.Type = 2 OR t.Type = '2')
+  AND t.sentiment_label IS NOT NULL
+  AND t.sentiment_expected_value IS NOT NULL
+
+OPTIONAL MATCH (t)-[:MENTIONED]->(u1:User)
+OPTIONAL MATCH (t)-[:REPLIES]->(:Tweet)<-[:POSTED]-(u2:User)
+
+WITH t, coalesce(u1, u2) AS airline_user
+WHERE airline_user.userId IN [
+  '56377143', '106062176', '18332190', '22536055', '124476322',
+  '26223583', '2182373406', '38676903', '1542862735', '253340062',
+  '218730857', '45621423', '20626359'
+]
+
+WITH 
+  CASE airline_user.userId
+    WHEN '56377143' THEN 'KLM'
+    WHEN '106062176' THEN 'AirFrance'
+    WHEN '18332190' THEN 'British_Airways'
+    WHEN '22536055' THEN 'AmericanAir'
+    WHEN '124476322' THEN 'Lufthansa'
+    WHEN '2182373406' THEN 'AirBerlin assist'
+    WHEN '38676903' THEN 'easyJet'
+    WHEN '1542862735' THEN 'RyanAir'
+    WHEN '253340062' THEN 'SingaporeAir'
+    WHEN '218730857' THEN 'Qantas'
+    WHEN '45621423' THEN 'EtihadAirways'
+    WHEN '20626359' THEN 'VirginAtlantic'
+  END AS airline,
+  toLower(t.sentiment_label) AS sentiment,
+  toFloat(t.sentiment_expected_value) AS score
+
+RETURN 
+  airline,
+  sentiment,
+  COUNT(*) AS tweet_count,
+  AVG(score) AS avg_sentiment_score
+ORDER BY airline, sentiment
+"""
+
+# Execute the query and process results
+with GraphDatabase.driver(uri, auth=(user, password)) as driver:
+    with driver.session(database=database) as session:
+        results = session.execute_read(run_query, airline_sentiment_query)
+        print(f"Retrieved {len(results)} records")
+        if results:
+            print("Sample record:", results[0])
+            
+            # Create DataFrame
+            df = pd.DataFrame(results)
+            
+            # Remove rows where 'airline' is missing
+            df = df[df['airline'].notna()]
+            
+            # Exclude AirBerlin and AirBerlin assist
+            df = df[~df['airline'].str.contains('AirBerlin', na=False)]
+
+            # Pivot the data for visualization
+            pivot_df = df.pivot(index='airline', columns='sentiment', values='tweet_count').fillna(0)
+
+            # Convert counts to percentages
+            sentiment_percent = pivot_df.div(pivot_df.sum(axis=1), axis=0) * 100
+
+            # Create stacked bar chart
+            plt.figure(figsize=(14, 8))
+            ax = sentiment_percent.plot(kind='bar',
+                                        stacked=True,
+                                        color=['#ff6b6b', '#feca57', '#1dd1a1'],  # Red, Yellow, Green
+                                        edgecolor='black',
+                                        width=0.85)
+
+            # Customize the plot
+            plt.title('Airline Sentiment Distribution (Percentage)', fontsize=16, pad=20)
+            plt.xlabel('Airline', fontsize=12)
+            plt.ylabel('Percentage (%)', fontsize=12)
+            plt.xticks(rotation=45, ha='right', fontsize=10)
+            plt.yticks(fontsize=10)
+            plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+            # Adjust legend
+            plt.legend(title='Sentiment',
+                       bbox_to_anchor=(1.02, 1),
+                       loc='upper left',
+                       fontsize=10)
+
+            # Add percentage labels inside bars
+            for i, airline in enumerate(sentiment_percent.index):
+                cumulative = 0
+                for sentiment in sentiment_percent.columns:
+                    value = sentiment_percent.loc[airline, sentiment]
+                    if value > 0:  # Only show labels for non-zero values
+                        y_position = cumulative + (value / 2)
+                        ax.text(i, y_position,
+                                f'{value:.1f}%',
+                                ha='center',
+                                va='center',
+                                color='white' if value > 15 else 'black',
+                                fontsize=9,
+                                fontweight='bold')
+                    cumulative += value
+
+            plt.tight_layout()
+            plt.show()
+        else:
+            print("No data available for visualization.")
