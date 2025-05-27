@@ -197,7 +197,6 @@ for file_path in tqdm(files, desc="Second pass"):
                 for mentioned_screen_name in mentions:
                     mentioned_uid = screen_name_to_id.get(mentioned_screen_name)
 
-                    # ✅ FIX: only write if user exists
                     if mentioned_uid and mentioned_uid in user_ids:
                         edge = (tid, mentioned_uid)
                         if edge not in mention_edges:
