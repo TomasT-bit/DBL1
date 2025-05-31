@@ -47,10 +47,7 @@ In addition:
 5. in config file of neo4j change according to below
 ```bash
 dbms.security.allow_csv_import_from_file_urls=true is uncommented 
-dbms.directories.import=import ?
-dbms.security.procedures.unrestricted=apoc.*,gds.*
 dbms.security.procedures.allowlist=apoc.*,gds.* is uncommentedd
-dbms.directories.plugins=plugins ?
 
 server.memory.pagecache.size=2G
 dbms.memory.heap.initial_size=3G
@@ -61,21 +58,15 @@ dbms.memory.pagecache.size=2G
 7. Install APOC plugin and Graph Data Science Library 
 8. Run in powershell(adapt filepath to your neo4j-admin.ps1):
 ```bash
-PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079e945-2bb0-4856-b164-8cefb28053e3\bin\neo4j-admin.ps1" `
-    database import full twitter9 `
+& "C:\Users\20241225\.Neo4jDesktop\relate-data\dbmss\dbms-304bd8b7-f0ea-4110-baaa-b3109d3ce4c4\bin\neo4j-admin.ps1" database import full twitter9 `
     --overwrite-destination=true `
     --multiline-fields=true `
     --verbose `
     --nodes="import\users.csv" `
     --nodes="import\tweets.csv" `
-    --nodes="import\hashtag.csv" `
     --relationships="import\posted.csv" `
-    --relationships="import\mentions.csv" `
-    --relationships="import\retweets.csv" `
-    --relationships="import\quoted.csv" `
-    --relationships="import\contain.csv" `
     --relationships="import\replies.csv"
-```
+
 9. Create new database in the neo4j project called twitter
 
 ## Sentimement
