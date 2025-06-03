@@ -217,7 +217,7 @@ def parallel_extract(airline_ids, queue):
     queue.put("DONE")
 
 if __name__ == "__main__":
-    profile_output = "profile_stats.prof"
+    #profile_output = "profile_stats.prof"
     with Manager() as manager:
         queue = manager.Queue()
         writer_process = Process(target=csv_writer, args=(queue,))
@@ -225,12 +225,12 @@ if __name__ == "__main__":
 
         with cProfile.Profile() as pr:
             parallel_extract(airline_ids, queue)
-            pr.dump_stats(profile_output)
+            #pr.dump_stats(profile_output)
 
         writer_process.join(timeout=600)
         if writer_process.is_alive():
             logger.error("Writer process did not finish in time.")
 
-        print(f"Profile saved to {profile_output}")
-        stats = pstats.Stats(profile_output)
-        stats.strip_dirs().sort_stats('cumtime').print_stats(20)
+        #print(f"Profile saved to {profile_output}")
+        #stats = pstats.Stats(profile_output)
+        #stats.strip_dirs().sort_stats('cumtime').print_stats(20)
