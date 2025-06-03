@@ -61,7 +61,7 @@ dbms.memory.pagecache.size=2G
 7. Install APOC plugin and Graph Data Science Library 
 8. Run in powershell(adapt filepath to your neo4j-admin.ps1):
 ```bash
-PowerShell -File "C:\Users\20231225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-e42947a7-cade-481c-8f07-88eb1fd5d308\bin\neo4j-admin.ps1"`
+PowerShell -File "C:\Users\bitas\.Neo4jDesktop\relate-data\dbmss\dbms-1bf719c9-4c5f-4494-a7bc-d431ceb0003f\bin\neo4j-admin.ps1"`
     database import full twitter9 `
     --overwrite-destination=true `
     --multiline-fields=true `
@@ -79,3 +79,36 @@ PowerShell -File "C:\Users\20231225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-e429
 9. Create new database in the neo4j project called twitter
  
 ## Sentimement
+
+"C++"
+# c++ compiler (MSVC)
+1. Go to "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+2. Click “Download Build Tools” and install it
+3. During installation, make sure these are checked:
+MSVC v143 - VS 2022 C++ x64/x86 build tools
+Windows 10 SDK
+CMake tools for Windows
+
+# using a simple C++ HTTP library (cpr)
+1. Go to "https://www.7-zip.org/" and dl it and install it
+2. Click on "Environment Variables..."
+3. select "path" in "System variables" and then click "edit"
+4. Click on "new" and then add this address "C:\Program Files\7-Zip"
+5. Open PowerShell and run "cd C:\Users\bitas\OneDrive\Documents\vcpkg
+.\vcpkg.exe install cpr" # for HTTP requests"
+6. in powershell run ".\vcpkg.exe install nlohmann-json" #to parse JSON tweet files
+
+# switching to MSVC (Because MSVC is no compatible with vcpkg)
+1. open Powershell on desktop and run this "cd "C:\Users\bitas\OneDrive\Documents\vcpkg"
+>> .\vcpkg.exe install openssl:x64-windows"
+2. Open "x64 Native Tools Command Prompt for VS 2022":
+3. cd C:\Users\bitas\OneDrive\Documents\DBL1
+4. cl /std:c++17 main.cpp /EHsc ^
+More? /I"C:\Users\bitas\OneDrive\Documents\vcpkg\installed\x64-windows\include" ^
+More? /link /LIBPATH:"C:\Users\bitas\OneDrive\Documents\vcpkg\installed\x64-windows\lib" ^
+More? cpr.lib libssl.lib libcrypto.lib ws2_32.lib crypt32.lib user32.lib zlib.lib
+
+# fix the main.cpp problem:
+1. Open the Command Palette "ctrl+ shift+ p"
+2. Open "C/C++: Edit Configurations (JSON)"
+3. in "includePath" add this path "C:/Users/bitas/OneDrive/Documents/vcpkg/installed/x64-windows/include"
