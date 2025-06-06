@@ -13,7 +13,6 @@
 #include <sstream>
 
 using json = nlohmann::json;
-using namespace std::string_literals;
 using namespace std::chrono;
 using std::string;
 using std::unordered_map;
@@ -21,6 +20,7 @@ using std::unordered_set;
 using std::vector;
 
 std::mutex query_mutex;
+std::mutex id_mutex;
 
 json post_query(const string& query, const json& params = json::object()) {
     json payload = {
@@ -50,7 +50,8 @@ unordered_set<string> fetch_airline_tweet_ids(const string& airline_id) {
 
 unordered_map<string, unordered_map<string, vector<string>>> fetch_component_children_map() {
     string query = R"(
-        MATCH (t:Tweet) WHERE exists(t.componentId) AND t.componentId IS NOT NULL
+        MATCH (t:Tweet)
+        WHERE t.componentId IS NOT NULL
         OPTIONAL MATCH (t)<-[:REPLIES]-(child:Tweet)
         RETURN t.tweetId AS parent, t.componentId AS componentId, collect(DISTINCT child.tweetId) AS children
     )";
@@ -101,6 +102,22 @@ unordered_map<string, int> annotate_positions(const vector<string>& convo, const
     return annotations;
 }
 
+void send_batch_to_neo4j(const vector<std::tuple<int, string, vector<string>, unordered_map<string, int>>>& batch) {
+    std::ostringstream query;
+    for (const auto& [conv_id, airline_id, trimmed, annotations] : batch) {
+        query << "CREATE (:Conversation {id: " << conv_id << ", airlineId: '" << airline_id << "'})\n";
+        for (size_t i = 0; i < trimmed.size(); ++i) {
+            query << "MATCH (t" << i << ":Tweet {tweetId: '" << trimmed[i] << "'})\n";
+        }
+        for (size_t i = 0; i < trimmed.size(); ++i) {
+            query << "MATCH (c:Conversation {id: " << conv_id << "})\n";
+            query << "MERGE (c)-[:PART_OF {positionType: " << annotations.at(trimmed[i]) << "}]->(t" << i << ")\n";
+        }
+    }
+    std::lock_guard<std::mutex> lock(query_mutex);
+    post_query(query.str());
+}
+
 void handle_airline(const string& airline_id, int& global_conv_id) {
     std::cout << "==> Handling airline: " << airline_id << std::endl;
 
@@ -110,14 +127,11 @@ void handle_airline(const string& airline_id, int& global_conv_id) {
     post_query("CALL gds.wcc.write('" + graph_name + "', { writeProperty: 'componentId' })");
 
     auto airline_tweet_ids = fetch_airline_tweet_ids(airline_id);
-    std::cout << "   Airline tweets fetched: " << airline_tweet_ids.size() << std::endl;
-
     auto all_components = fetch_component_children_map();
-    std::cout << "   Components found: " << all_components.size() << std::endl;
+
+    vector<std::tuple<int, string, vector<string>, unordered_map<string, int>>> batch;
 
     for (const auto& [comp_id, children_map] : all_components) {
-        if (children_map.size() < 3) continue;
-
         unordered_set<string> all_children;
         for (const auto& [p, kids] : children_map) all_children.insert(kids.begin(), kids.end());
 
@@ -128,35 +142,22 @@ void handle_airline(const string& airline_id, int& global_conv_id) {
         }
         std::reverse(ordered.begin(), ordered.end());
 
-        int start = 0, end = ordered.size();
-        while (start < end && airline_tweet_ids.count(ordered[start])) start++;
-        while (end > start && airline_tweet_ids.count(ordered[end - 1])) end--;
+        if (ordered.size() < 3) continue;
 
-        vector<string> trimmed(ordered.begin() + start, ordered.begin() + end);
-        bool has_airline = std::any_of(trimmed.begin(), trimmed.end(), [&](const string& t) {
-            return airline_tweet_ids.count(t);
-        });
-        if (!has_airline || trimmed.size() < 3) continue;
-
-        auto annotations = annotate_positions(trimmed, airline_tweet_ids);
-
-        std::ostringstream query;
-        query << "CREATE (:Conversation {id: " << global_conv_id << ", airlineId: '" << airline_id << "'})\n";
-        for (size_t i = 0; i < trimmed.size(); ++i) {
-            query << "MATCH (t" << i << ":Tweet {tweetId: '" << trimmed[i] << "'})\n";
-        }
-        for (size_t i = 0; i < trimmed.size(); ++i) {
-            query << "MATCH (c:Conversation {id: " << global_conv_id << "})\n";
-            query << "MERGE (c)-[:PART_OF {positionType: " << annotations[trimmed[i]] << "}]->(t" << i << ")\n";
-        }
-
+        auto annotations = annotate_positions(ordered, airline_tweet_ids);
+        int cid;
         {
-            std::lock_guard<std::mutex> lock(query_mutex);
-            post_query(query.str());
+            std::lock_guard<std::mutex> lock(id_mutex);
+            cid = global_conv_id++;
         }
+        batch.emplace_back(cid, airline_id, ordered, annotations);
 
-        global_conv_id++;
+        if (batch.size() >= 100) {
+            send_batch_to_neo4j(batch);
+            batch.clear();
+        }
     }
+    if (!batch.empty()) send_batch_to_neo4j(batch);
 
     post_query("CALL gds.graph.drop('" + graph_name + "', false) YIELD graphName");
     std::cout << "==> Finished airline: " << airline_id << std::endl;
@@ -186,7 +187,6 @@ int main() {
     return 0;
 }
 
-
 // change the memory settings in neo4j:
 /* dbms.memory.heap.initial_size=4G
 dbms.memory.heap.max_size=6G
@@ -205,17 +205,3 @@ ws2_32.lib crypt32.lib user32.lib advapi32.lib */
 //and then:
 
 /* .\fully_automated.exe */
-
-
-// run on neo4j to load csv files:
-/* LOAD CSV WITH HEADERS FROM 'file:///conversations.csv' AS row
-MERGE (:Conversation {id: toInteger(row.`:ID(Conversation)`), airlineId: row.airlineId}); */
-
-/* LOAD CSV WITH HEADERS FROM 'file:///conversation_edges.csv' AS row
-MATCH (c:Conversation {id: toInteger(row.`:START_ID(Conversation)`)})
-MATCH (t:Tweet {tweetId: row.`:END_ID(Tweet)`})
-MERGE (c)-[:PART_OF {positionType: toInteger(row.positionType)}]->(t); */
-
-/* LOAD CSV WITH HEADERS FROM 'file:///conversation_stats.csv' AS row
-MATCH (c:Conversation {id: toInteger(row.`:ID(Conversation)`)})
-SET c.size = toInteger(row.size); */
