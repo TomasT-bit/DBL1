@@ -154,3 +154,9 @@ WHERE t.lang = "en"
 RETURN n1, n2, u, t
 LIMIT 100
 """
+
+
+CREATE INDEX tweet_id_index IF NOT EXISTS FOR (t:Tweet) ON (t.tweetId);
+ CREATE INDEX tweet_component_id_index IF NOT EXISTS FOR (t:Tweet) ON (t.componentId);
+ CREATE INDEX tweet_created_at_index IF NOT EXISTS FOR (t:Tweet) ON (t.createdAt);
+ CREATE INDEX user_id_index IF NOT EXISTS FOR (u:User) ON (u.userId);

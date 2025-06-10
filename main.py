@@ -14,8 +14,8 @@ from neo4j.exceptions import TransientError
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
-DB_NAME = "twitter9"
-MAX_WORKERS = 6  # Reduced from 13
+DB_NAME = "twitter7"
+MAX_WORKERS = 6
 LOG_EVERY_N = 100
 
 airline_ids = [
@@ -119,7 +119,6 @@ def get_conversations(airline_id, queue):
 
                 ordered = list(reversed(ordered))
 
-                # Trim
                 start, end = 0, len(ordered)
                 while start < end and ordered[start] in airline_tweet_ids:
                     start += 1
@@ -131,8 +130,19 @@ def get_conversations(airline_id, queue):
 
                 if has_airline_inside and len(trimmed) >= 3:
                     annotations = annotate_positions(trimmed, airline_tweet_ids)
+
+                    # Fetch timestamps for first and last tweet
+                    time_result = session.run("""
+                    MATCH (t:Tweet)
+                    WHERE t.tweetId IN [$start_tid, $end_tid]
+                    RETURN t.tweetId AS tweetId, t.created_at AS created_at
+                    """, start_tid=trimmed[0], end_tid=trimmed[-1])
+                    time_map = {r["tweetId"]: r["created_at"] for r in time_result}
+                    start_time = time_map.get(trimmed[0])
+                    end_time = time_map.get(trimmed[-1])
+
                     logger.info(f"Airline {airline_id}: putting conversation of size {len(trimmed)} into queue")
-                    queue.put((airline_id, trimmed, annotations))
+                    queue.put((airline_id, trimmed, annotations, start_time, end_time))
 
             session.run(f"CALL gds.graph.drop('{graph_name}', false) YIELD graphName")
             logger.info(f"END: Finished airline {airline_id}")
@@ -169,7 +179,7 @@ def csv_writer(queue):
         conv_writer = csv.writer(conv_file)
         edge_writer = csv.writer(edge_file)
 
-        conv_writer.writerow([":LABEL", ":ID(Conversation)", "airlineId"])
+        conv_writer.writerow([":LABEL", ":ID(Conversation)", "airlineId", "start", "end"])
         edge_writer.writerow([":START_ID(Conversation)", ":END_ID(Tweet)", ":TYPE", "positionType:int"])
 
         conv_id = 1
@@ -183,16 +193,12 @@ def csv_writer(queue):
             if data == "DONE":
                 break
 
-            airline_id, tweet_ids, annotations = data
-            conv_writer.writerow(["Conversation", conv_id, airline_id])
+            airline_id, tweet_ids, annotations, start_time, end_time = data
+            conv_writer.writerow(["Conversation", conv_id, airline_id, start_time, end_time])
+
             for tid in tweet_ids:
                 part_type = annotations.get(tid, 0)
                 edge_writer.writerow([conv_id, tid, "PART_OF", part_type])
-
-            conv_file.flush()
-            edge_file.flush()
-            os.fsync(conv_file.fileno())
-            os.fsync(edge_file.fileno())
 
             conv_count += 1
             if conv_count % LOG_EVERY_N == 0:
@@ -217,7 +223,6 @@ def parallel_extract(airline_ids, queue):
     queue.put("DONE")
 
 if __name__ == "__main__":
-    profile_output = "profile_stats.prof"
     with Manager() as manager:
         queue = manager.Queue()
         writer_process = Process(target=csv_writer, args=(queue,))
@@ -225,12 +230,7 @@ if __name__ == "__main__":
 
         with cProfile.Profile() as pr:
             parallel_extract(airline_ids, queue)
-            pr.dump_stats(profile_output)
 
         writer_process.join(timeout=600)
         if writer_process.is_alive():
             logger.error("Writer process did not finish in time.")
-
-        print(f"Profile saved to {profile_output}")
-        stats = pstats.Stats(profile_output)
-        stats.strip_dirs().sort_stats('cumtime').print_stats(20)
