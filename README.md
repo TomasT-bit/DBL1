@@ -65,7 +65,9 @@ dbms.memory.pagecache.size=2G
     --nodes="import\users.csv" `
     --nodes="import\tweets.csv" `
     --relationships="import\posted.csv" `
-    --relationships="import\replies.csv"
+    --relationships="import\replies.csv" `
+     --nodes="import\conversations.csv" `
+>>     --relationships="import\conversation_edges.csv"
 
 9. Create new database in the neo4j project called twitter
 
