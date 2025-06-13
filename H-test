@@ -1,0 +1,109 @@
+from scipy import stats
+import scikit_posthocs as sp
+import pandas as pd
+from neo4j import GraphDatabase
+import os
+
+# Configuration
+NEO4J_URI = "bolt://localhost:7687"
+NEO4J_USER = "neo4j"
+NEO4J_PASSWORD = "password"
+NEO4J_DB = "twitter"
+EXPORT_DIR = "export"
+os.makedirs(EXPORT_DIR, exist_ok=True)
+
+# Modified query with explicit type conversion
+query = """
+MATCH (c:Conversation)
+WHERE c.top_label IS NOT NULL 
+  AND c.start_sentiment IS NOT NULL 
+  AND c.end_sentiment IS NOT NULL 
+  AND c.airlineId IS NOT NULL
+RETURN 
+  c.top_label AS top_label,
+  toFloat(c.start_sentiment) AS start_sentiment,
+  toFloat(c.end_sentiment) AS end_sentiment,
+  c.airlineId AS airlineId
+"""
+
+# Fetch data from Neo4j
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD), database=NEO4J_DB)
+
+def fetch_data(tx):
+    result = tx.run(query)
+    return [dict(record) for record in result]
+
+try:
+    with driver.session() as session:
+        records = session.execute_read(fetch_data)
+    
+    # Create DataFrame and validate data
+    df = pd.DataFrame(records)
+    
+    # Debug: Check data types before conversion
+    print("Data types before conversion:")
+    print(df.dtypes)
+    
+    # Force numeric conversion and handle errors
+    for col in ['start_sentiment', 'end_sentiment']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    
+    # Remove invalid rows
+    df = df.dropna(subset=['start_sentiment', 'end_sentiment', 'top_label'])
+    
+    # Debug: Verify conversion worked
+    print("\nData types after conversion:")
+    print(df.dtypes)
+    print(f"\nSample values:\n{df[['start_sentiment', 'end_sentiment']].head()}")
+    
+    # Calculate sentiment change
+    df['sentiment_change'] = df['end_sentiment'] - df['start_sentiment']
+    
+    # Kruskal-Wallis test
+    if len(df['top_label'].unique()) > 1:
+        grouped_data = [group['sentiment_change'].values 
+                       for name, group in df.groupby('top_label')]
+        h_stat, p_value = stats.kruskal(*grouped_data)
+        
+        print(f"\nKruskal-Wallis H-test:\nH = {h_stat:.3f}, p = {p_value:.4f}")
+        
+        if p_value < 0.05:
+            print("\n Significant differences exist between topics!")
+            posthoc = sp.posthoc_dunn(df, val_col='sentiment_change', 
+                                     group_col='top_label', p_adjust='bonferroni')
+            print("\nPost-hoc Dunn's test (Bonferroni-adjusted p-values):")
+            print(posthoc)
+            posthoc.to_csv(f"{EXPORT_DIR}/dunns_posthoc_results.csv")
+        else:
+            print("\n No significant differences found.")
+    else:
+        print("\nWarning: Only one topic category found - cannot perform Kruskal-Wallis test")
+
+except Exception as e:
+    print(f"\n Error occurred: {str(e)}")
+finally:
+    driver.close()
+
+#Sample values:
+   #start_sentiment  end_sentiment 
+#0           0.9666         0.6280
+#1          -0.9045        -0.3280
+#2          -0.3742         0.9593
+#3          -0.9204        -0.8744
+#4           0.1306         0.1842
+
+#Kruskal-Wallis H-test:
+#H = 2464.173, p = 0.0000
+
+# Significant differences exist between topics!
+
+#Post-hoc Dunn's test (Bonferroni-adjusted p-values):
+ #                      cancelled flight  ...  uncomfortable flight
+#cancelled flight           1.000000e+00  ...          4.804845e-02
+#delayed flight             1.640471e-10  ...          3.336501e-22
+#discrimination             5.332253e-28  ...          1.455158e-38
+#lost baggage               1.905733e-03  ...          3.857675e-09
+#poor customer service      9.574294e-05  ...          1.000000e+00
+#ticket issue               3.246458e-03  ...          2.901533e-11
+#trouble with refunds       7.437927e-05  ...          6.584108e-12
+#uncomfortable flight       4.804845e-02  ...          1.000000e+00
