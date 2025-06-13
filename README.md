@@ -78,6 +78,24 @@ PowerShell -File "C:\Users\20241225\Desktop\DBL1\Neo\relate-data\dbmss\dbms-9079
  
 ## Sentimement
 
+In order to perform sentiment analysis for this project we have used a pre-trained model from Hugging Face. "cardiffnlp/twitter-roberta-base-sentiment-latest" classifies each tweet as positive, neutral or negative based on the probability that the tweet fits that label.We went one step further and instead of just using the probabilities we calculated the expected value for each tweet following the formula: positive_propability * 1 + neutral_probability * 0 + negative_probability * -1. This gives us an interval between -1 and 1 where all the tweets are represented. Since the model is pre-trained on tweets already, it is pretty certain  for most tweets and we found that most tweets fall on the extremes of the interval such as close to 1 or -1 and at 0. 
+
+Input : csv file with all the tweets, most important the text attribute.
+
+Output : Same csv file but with 2 more columns, expected_value and sentiment_label
+
+How it works:
+
+1. We load the model and its tokenizer from Hugging Face
+2. We preprocess the tweets to remove any links and replacing the mentions(@) in the tweet with @user.( make sure to change the path for the csv file)
+3. Tokenize and batch the text from the tweets using the torch library on the GPU(preferably)
+4. Get the softamax probabiltiies for each of the labels(positive, negative and neutral)
+5. Compute the expected value
+6. Return the expected value and the label with the highest probability
+7. Save back to CSV
+
+After the model is done we can distribute the csv file among us and import it into Neo4j
+
 "C++"
 # c++ compiler (MSVC)
 1. Go to "https://visualstudio.microsoft.com/visual-cpp-build-tools/"
