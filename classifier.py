@@ -23,7 +23,7 @@ CANDIDATE_LABELS = [
     "discrimination"
 ]
 
-# Load and preprocess CSV
+#Loading and preprocessing CSV
 print(" Loading CSV")
 df = pd.read_csv(CSV_FILE)
 
@@ -64,7 +64,7 @@ for i in tqdm(range(0, len(grouped), batch_size), desc="Classifying", unit="batc
 
 grouped["top_label"] = top_labels
 
-# Write classification back to Neo4j
+# Write back to Neo4j
 print("Writing classification results back to Neo4j")
 
 update_query = """
@@ -81,4 +81,4 @@ with driver.session() as session:
         })
 driver.close()
 
-print("All done! Classification labels saved to Neo4j.")
+print("Done")
