@@ -47,13 +47,15 @@ df["sentiment_change"] = df["end_sentiment"] - df["start_sentiment"]
 df["group"] = df["airlineId"].apply(lambda x: "AmericanAir" if int(x) == AMERICAN_AIR_ID else "Others")
 
 plt.figure(figsize=(18, 9))
-sns.boxplot(
+sns.violinplot(
     data=df,
     x="top_label",
     y="sentiment_change",
     hue="group",
     palette="PuOr",
-    fliersize=2
+    scale="width",
+    inner="box",
+    cut=0 
 )
 plt.title("Distribution of Sentiment Change per Complaint Category")
 plt.xlabel("Complaint Category")
@@ -61,5 +63,5 @@ plt.ylabel("Sentiment Change")
 plt.axhline(0, color="black", linestyle="--", linewidth=0.8)
 plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
-plt.savefig(f"{EXPORT_DIR}/boxplot.png")
+plt.savefig(f"{EXPORT_DIR}/distribution.png")
 plt.show()
