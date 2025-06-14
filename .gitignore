@@ -33,3 +33,5 @@ data/
 #created from data
 import/
 
+#exclude lare files
+venv/
