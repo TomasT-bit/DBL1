@@ -33,5 +33,9 @@ data/
 #created from data
 import/
 
-#exclude lare files
+results/
+
+#exclude virtual enviroment
 venv/
+__pycache__/
+*.pyc
