@@ -28,10 +28,10 @@ replay_pid*
 .kotlin/
 
 #Data excluded 
-data/
+data/*
 
 #created from data
-import/
+import/*
 
 results/
 
@@ -39,4 +39,4 @@ results/
 venv/
 __pycache__/
 *.pyc
-visualisations/
+visualisations/*
