@@ -2,18 +2,21 @@ import pandas as pd
 from datetime import datetime
 from neo4j import GraphDatabase
 
-# === Config ===
+# === Configuration ===
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
 NEO4J_DB = "twitterconversations"
-OUTPUT_CSV = "conversation_nodes_extended.csv"
 
-# === Timestamp Conversion Function ===
+
 def convert_twitter_ts_vectorized(series):
+    """
+    Convert Twitter-style timestamps to ISO 8601 format 
+    """
     def parse(ts):
         if ts is None:
             return None
+        # If already in ISO format, return as-is
         if isinstance(ts, str) and ts[0:4].isdigit() and "T" in ts:
             return ts
         try:
@@ -21,47 +24,27 @@ def convert_twitter_ts_vectorized(series):
             return dt.isoformat()
         except Exception:
             return None
+
     return series.apply(parse)
 
-# === Connect to Neo4j ===
-print("🚀 Connecting to Neo4j...")
-driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
-with driver.session(database=NEO4J_DB) as session:
-    print("🔧 Step 0: Ensure index on Tweet.tweetId ...")
-    session.run("""
-        MATCH (c:Conversation)
-RETURN 
-    labels(c)[0] AS label,
-    c.conversationId AS id,
-    c.airlineId AS airlineId,
-    c.start_sentiment AS start_sentiment,
-    c.end_sentiment AS end_sentiment,
-    c.top_label AS top_label,
-    c.start AS start,
-    c.end AS end
-    """)
-
-    print("🔄 Step 1: Fetching tweets in conversations...")
+def fetch_tweet_data(session):
+    """
+    Fetch tweet IDs and creation timestamps from Neo4j.
+    """
     result = session.run("""
         MATCH (c:Conversation)-[:PART_OF]->(t:Tweet)
         RETURN t.tweetId AS tweetId, t.created_at AS created_at
     """)
-    df = pd.DataFrame(result.data())
-    print(f"📥 Retrieved {len(df)} tweets")
+    return pd.DataFrame(result.data())
 
-    print(f"⚡ Step 2: Converting timestamps...")
-    df['iso'] = convert_twitter_ts_vectorized(df['created_at'])
-    converted = df['iso'].notnull().sum()
-    print(f"✅ Converted {converted}/{len(df)} timestamps successfully")
-
-    print("⚡ Step 3: Batch updating tweets in Neo4j...")
-    batch_size = 500
+def update_tweet_timestamps(session, df, batch_size=500):
+    """
+    Update the `created_at` field on Tweet nodes in Neo4j with datetime objects.
+    """
     updates = df.dropna(subset=['iso'])
 
     for i in range(0, len(updates), batch_size):
         batch_df = updates.iloc[i:i+batch_size]
-        print(f"⏳ Updating batch {i//batch_size + 1} ({len(batch_df)} tweets)...")
         batch = batch_df[['tweetId', 'iso']].to_dict("records")
         session.run("""
             UNWIND $batch AS row
@@ -69,15 +52,47 @@ RETURN
             SET t.created_at = datetime(row.iso)
         """, {"batch": batch})
 
-    print("🕒 Step 4: Setting Conversation start/end timestamps...")
+def set_conversation_bounds(session):
+    """
+    Set the start and end timestamp on each Conversation node based on its related Tweet nodes.
+    """
     session.run("""
-        MATCH (c:Conversation)-[:PART_OF]->(t:Tweet)
+        MATCH (c:Conversation)<-[:PART_OF]-(t:Tweet)
         WHERE t.created_at IS NOT NULL
         WITH c, min(t.created_at) AS start, max(t.created_at) AS end
         SET c.start = start, c.end = end
     """)
-    print("✅ Conversation time bounds updated")
 
+def main():
+    print("Connecting.")
+    driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
-driver.close()
-print("🔌 Neo4j connection closed")
+    try:
+        with driver.session(database=NEO4J_DB) as session:
+            #Make index 
+            session.run("""
+            CREATE INDEX tweetId_index IF NOT EXISTS
+        FOR (t:Tweet) ON (t.tweetId) 
+""")
+            print("Fetching tweets")
+            df = fetch_tweet_data(session)
+            print(f"Retrieved {len(df)} tweets")
+
+            print("Converting tweet timestamps...")
+            df['iso'] = convert_twitter_ts_vectorized(df['created_at'])
+            converted = df['iso'].notnull().sum()
+            print(f"Converted {converted}/{len(df)} timestamps successfully")
+
+            print("Updating tweet nodes in Neo4j...")
+            update_tweet_timestamps(session, df)
+
+            print("Updating conversation start and end times...")
+            set_conversation_bounds(session)
+
+            print("Update done")
+    finally:
+        driver.close()
+        print("Neo4j connection closed.")
+
+if __name__ == "__main__":
+    main()
