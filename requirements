@@ -10,3 +10,4 @@ matplotlib
 tiktoken
 protobuf 
 sentencepiece
+scipy
