@@ -94,10 +94,9 @@ dbms.memory.heap.max_size=4G
 dbms.memory.pagecache.size=2G
 ```
 
-Finally move the jsons into the data/ folder and run to_csv.py, resulting 4 csv move into import/ into the neo4j database, after which in powershell run adapted to the location admin.ps1 
+Finally move the jsons into the data/ folder and run to_csv.py, resulting 4 csv move into import/ into the neo4j database, after which in powershell run adapted to the location admin.ps1 inside the bin/ 
 ```bash
-& PowerShell -File "</admin.ps1>" `
- 3cbf770abb38727bebbffd270fae3b36ab77aae7
+PowerShell -File "</admin.ps1>" `
     database import full twitter `
     --overwrite-destination=true `
     --multiline-fields=true `
@@ -112,8 +111,7 @@ Finally move the jsons into the data/ folder and run to_csv.py, resulting 4 csv 
  
 10. Run building_conversations.py, add the newly created 2 csv into the import folder of neo4j and finally run powershell command
 ```bash
-$ PowerShell -File "</admin.ps1>" `
- 3cbf770abb38727bebbffd270fae3b36ab77aae7
+PowerShell -File "</admin.ps1>" `
     database import full twitterConversations `
     --overwrite-destination=true `
     --multiline-fields=true `

@@ -7,3 +7,6 @@ matplotlib
 seaborn 
 networkx
 matplotlib
+tiktoken
+protobuf 
+sentencepiece
