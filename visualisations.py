@@ -1,9 +1,11 @@
-from neo4j import GraphDatabase #ADD INDEXING !!!!!!! AUTOMATIC 
+from neo4j import GraphDatabase
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 from datetime import datetime
+import Htest
+import Htest2
 
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
@@ -117,24 +119,11 @@ def plot_tweet_sentiment_histogram(sentiments, start_str, end_str):
     plt.savefig(os.path.join(EXPORT_DIR, "sentiment_distribution_chart.png"))
 
 
-
- 
-# ----------------------
-#
-# ----------------------
-
-
-
-
-
-
-
-
-
 if __name__ == "__main__":
     
-    create_indexes() #CREATE 
+    create_indexes() #CREATE indecies
     
+    #Create Distribution of sentiment scores
     tweet_sentiments = fetch_tweet_sentiments_by_time(iso_start, iso_end)
     print(f"Fetched {len(tweet_sentiments)} tweet sentiment scores between {START} and {END}.")
     if tweet_sentiments:
@@ -142,13 +131,21 @@ if __name__ == "__main__":
     else:
         print("No tweets with sentiment scores in the given time frame.")
 
+    #Crete distribution of sentiment change 
     deltas = fetch_sentiment_deltas_by_time(iso_start, iso_end)
     print(f"Fetched {len(deltas)} sentiment delta values for conversations active between {START} and {END}.")
     if deltas:
         plot_sentiment_change_histogram(deltas, START, END)
     else:
         print("No conversations with sentiment deltas in the given time frame.")
-driver.close()
+    
+    #driver.close()
+    #Create Violin plots for AA vs others with Kruskal-Wallis
+    Htest.main(iso_start,iso_end)
+
+    #Run Kruskal-Wallis with post hoc don test 
+    Htest2.main(iso_start, iso_end)
+
 
 
  

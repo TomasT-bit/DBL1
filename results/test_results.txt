@@ -1,2 +1,0 @@
-Kruskal-Wallis Results:
-H = 2464.17, p = 0.0000
