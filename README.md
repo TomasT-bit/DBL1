@@ -1,15 +1,39 @@
 # DBL Data Challenge
 
-Welcome to the DBL Data Challenge repository! This project contains the initial processing of JSON files into CSVs with fields relevant for analysis, which are later loaded into Neo4j. It also includes Cypher queries used for data processing and analysis of the Twitter data.
+Welcome to the **DBL Data Challenge1** repository!
 
+This project processes Twitter JSONS into CSV files for graph modeling in Neo4j. It incorporates NEO4j. sentiment analysis, classification of issues and provides analytical insights based on time and sentiment changes.
 
-# Tweet Processing with Sentiment Analysis
+---
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Setup](#setup)
+- [Neo4j Configuration](#configuration)
+- [Importing to Neo4j](#importing-to-neo4j)
+- [Sentiment Analysis](#sentiment-analysis)
+- [Scripts Overview](#scripts-overview)
+
+---
+
+## Project Overview
+
+This repository supports the analysis of comparision of airline support teams engaging with users on Twitter in order to resolve an issue. The conversations are moddeled as trees with airline tweet in it and user tweets at the start and end, we do not restrict this only to one user to capture the greater effect the twitter teams reponse has.
+
+### Workflow Summary
+
+1. Convert raw Twitter JSON files in the `data/` folder into CSVs: `tweets`, `users`, `posted`, and `replies`, this is done with cleaning in mind.
+2. Import the CSVs into a Neo4j graph database using PowerShell and the `admin.ps1` script, as described below.
+3. Model conversations and classify each by the Type of issue discussed
+4. Perform analysis on the moddeled conversations
+
+---
 
 ## Setup
 
-1. Clone the repository
-
 ```bash
+# Clone the repository
 git clone https://github.com/yourname/yourproject.git
 cd yourproject
 
@@ -17,88 +41,45 @@ cd yourproject
 python -m venv venv
 
 # Activate the virtual environment
-venv\Scripts\activate
+venv\Scripts\activate  # Windows
+# source venv/bin/activate  # macOS/Linux
 
-#Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-2. Run the script
+## Configuration
 
-## Table of Contents
+Create new project inside Neo4j
+Download the APOC, Graph Data Science library inside Neo4j (on the side of the created project) 
+Edit the Neo4j configuration file (`neo4j.conf`) and apply the following settings:
 
-- [Project Overview](#introduction)
-- [Setup](#setup)
-- [Neo4j] (#Neo4j Configuration)
-- [Sentimement Analysis Usage](#sentimement)
-
-# Project Overview 
-This repository is intended to help with analyzing benefit of the presence of airline twitter teams on the social media platoform. It is designed such that it accounts for the larger context of a support queue, not limiting the sentiment to be analyzed on a tweet between two users. 
-
-## Workflow Summary:
-We convert jsons in the data/ to csv posted,replies,tweets,users and these are then imported into neo4j, through powershell comand. Here it then gets put into valid conversations. These conversations are then saved along the difference in the end sentiment and start sentiment of the conversation., and type of issue the conversation is reffering to. 
-
-## Finally we provide insight into the data by: 
-
-## Modeling:
-
-### Nodes: 
-1. USERS:  :LABEL,userId:ID(User),name,screen_name,followers,verified
-2. TWEETS: :LABEL,tweetId:ID(Tweet),text,created_at,lang,Type,sentiment_label,sentiment_expected_value 
-3. CONVERSATIONS: 
-
-### Relations: 
-1. Posted: ":START_ID(User)", ":END_ID(Tweet)"
-2. REPLIES: 
-3. PART_OF:
-
-
-# Neo4j Configuration
-To use the scripts in this repository, you need to Clone the repository and have the latest python and NEO4J Dekstop app. 
-
-```bash
-git clone https://github.com/TomasT-bit/DBL1
-cd DBL1
-```
-
-Create a virtual environment
-
-```bash
-python -m venv venv
-```
-
-Activate the virtual environment
-```bash
-venv\Scripts\activate
-```
-
-Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-## Neo4j Setup Steps
-Start new databse in Neo4j, download plugins APOC and GDSL and locate its config thorugh the Neo4j Dekstop, in it the following need to be 
-1. Move Data folder into DBL1 call it "data"
-2. Have running Neo4j dbms with password "password"
-3. in config file of neo4j change according to below
-### Uncommented:
 ```bash
 dbms.security.allow_csv_import_from_file_urls=true
-dbms.security.procedures.allowlist=apoc.*,gds.* 
-```
-### Values Changed:
-```bash
+dbms.security.procedures.allowlist=apoc.*,gds.*
+
 server.memory.pagecache.size=2G
 dbms.memory.heap.initial_size=3G
 dbms.memory.heap.max_size=4G
-dbms.memory.pagecache.size=2G
 ```
 
-## Importing to Neo4j:
-Finally move the jsons into the data/ folder and run to_csv.py, resulting 4 csv move into import/ into the neo4j database, after which in powershell run adapted to the location admin.ps1 inside the bin/ 
-```bash
-PowerShell -File "</admin.ps1>" `
+## Importing to Neo4j
+
+### Step-by-Step
+
+1. **Prepare Raw Data**  
+   Move your raw Twitter JSON files into the `data/` directory of the project.
+
+2. **Convert JSON to CSV**  
+   Run the following script to convert the data into CSV format:
+   ```bash
+   python scripts/to_csv.py
+   ``` 
+3.  **Import created csv into Neo4j**
+    Move the generated files into /import in the Neo4j project directory 
+    Run this command inside the terminal, where "<path-to-admin.ps1>" is your path to the admin.ps1
+    ```bash
+    PowerShell -File "<path-to-admin.ps1>" `
     database import full twitter `
     --overwrite-destination=true `
     --multiline-fields=true `
@@ -106,33 +87,51 @@ PowerShell -File "</admin.ps1>" `
     --nodes="import\users.csv" `
     --nodes="import\tweets.csv" `
     --relationships="import\posted.csv" `
-    --relationships="import\replies.csv" `
-```
+    --relationships="import\replies.csv" 
+    ```
+4. **Import create Database**
+    Create new database called "twitter" inside Neo4j with password "password"
 
-9. Inside the neo4j project create new database called twitter and start the project
- 
-10. Run building_conversations.py, add the newly created 2 csv into the import folder of neo4j and finally run powershell command
-```bash
-PowerShell -File "</admin.ps1>" `
-    database import full twitterConversations `
+5. **Create Conversations**
+    Run the following script 
+   ```bash
+   python building_conversations.py
+   ``` 
+6. **Run sentimnet on conversations**
+    ????
+
+7. **Clasify the type of issues in conversations** 
+    ???
+
+8.**Reimport the new files into Neo4j** 
+Move the newly created files into Neo4j project directory and run
+```bash 
+PowerShell -File "<path-to-admin.ps1>" `
+    database import full twitterconversations `
     --overwrite-destination=true `
     --multiline-fields=true `
     --verbose `
     --nodes="import\users.csv" `
     --nodes="import\tweets.csv" `
+    --nodes="import\conversations.csv" `
     --relationships="import\posted.csv" `
     --relationships="import\replies.csv" `
-     --nodes="import\conversations.csv" `
     --relationships="import\conversation_edges.csv"
 ```
-11. Inside the neo4j project create new database called twitter and start the project
+After create new databse inside the Neo4j project called twitterconversations
+8.**Add start and end time to the conversations** 
+ Run the following script 
+   ```bash
+   python helper_time.py
+   ``` 
+9. **Run visualisations** 
+Run the following script 
+   ```bash
+   python visualisations.py
+   ``` 
 
-12. Now analysis is done on the moddeled conversations with analysis.py
 
-
-
-# Sentimement
-
+## Sentiment-analysis
 In order to perform sentiment analysis for this project we have used a pre-trained model from Hugging Face. "cardiffnlp/twitter-roberta-base-sentiment-latest" classifies each tweet as positive, neutral or negative based on the probability that the tweet fits that label.We went one step further and instead of just using the probabilities we calculated the expected value for each tweet following the formula: positive_propability * 1 + neutral_probability * 0 + negative_probability * -1. This gives us an interval between -1 and 1 where all the tweets are represented. Since the model is pre-trained on tweets already, it is pretty certain  for most tweets and we found that most tweets fall on the extremes of the interval such as close to 1 or -1 and at 0. 
 
 ## Input:
@@ -151,3 +150,19 @@ Same csv file but with 2 more columns, expected_value and sentiment_label
 7. Save back to CSV
 
 After the model is done we can distribute the csv file among us and import it into Neo4j
+
+
+
+## Scripts Overview
+
+| Script Name              | Description                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| `to_csv.py`              | Converts raw Twitter JSON files into structured CSVs (`users`, `tweets`, `posted`, `replies`). |
+| `roberta_sentiment.py`   | Performs sentiment analysis on individual tweets using the RoBERTa model.   |
+| `building_conversations.py` | Constructs conversations by recursively linking replies and calculates sentiment shifts. |
+| `helper_time.py`         | Provides time-based utilities and functions to support temporal analysis.   |
+| `roberta_on_conv.py`     | Runs sentiment analysis specifically on the start and end tweets of each conversation. |
+| `classifier.py`          | Classifies conversations based on predefined issue types (e.g., complaint, praise). |
+| `visualisations.py`      | Generates visual representations and plots of the analysis results.         |
+| `Htest.py`               | Experimental script for hypothesis testing and statistical analysis.        |
+| `Htest2.py`              | Extended or alternative version of `Htest.py` for validating insights.      |

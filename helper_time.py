@@ -57,7 +57,7 @@ def set_conversation_bounds(session):
     Set the start and end timestamp on each Conversation node based on its related Tweet nodes.
     """
     session.run("""
-        MATCH (c:Conversation)<-[:PART_OF]-(t:Tweet)
+        MATCH (c:Conversation)-[:PART_OF]->(t:Tweet)
         WHERE t.created_at IS NOT NULL
         WITH c, min(t.created_at) AS start, max(t.created_at) AS end
         SET c.start = start, c.end = end
@@ -73,7 +73,7 @@ def main():
             session.run("""
             CREATE INDEX tweetId_index IF NOT EXISTS
         FOR (t:Tweet) ON (t.tweetId) 
-""")
+        """)
             print("Fetching tweets")
             df = fetch_tweet_data(session)
             print(f"Retrieved {len(df)} tweets")
