@@ -98,10 +98,25 @@ dbms.memory.heap.max_size=4G
    python building_conversations.py
    ``` 
 6. **Run sentimnet on conversations**
-    ????
+    Neo4j connection requiredAdd commentMore actions
+    Change the path in the roberta_on_conv.py file to the csv contanining the conversations.
+    Run the following script 
+    ```bash
+    python roberta_on_conv
+    ``` 
+    it takes a csv file that has all the unique conversations, the tweets can be connected to these conversations by one of 3 types of PART_OF relationship,
+    the ones with PART_OF = 1 are part of the start of the conversation while the ones with PART_OF = 2 are in the end of the conversation.
+    The script then adds two new attributes to the corresponding conversation, start_sentiment and end_sentiment
 
 7. **Clasify the type of issues in conversations** 
-    ???
+    NEO4j connection requiredAdd commentMore actions
+    Change the path in the classifier.py file to the csv containing the conversations.
+    Run the following script
+    ```bash
+    python classifier.py
+    ``` 
+    The script takes all the tweets that are part of the start of the conversation, concatenates the text and then runs the pretrained model on the whole block of text, giving one top_label with a probability value
+    It then writes another attribute on the conversation nodes, top_label.
 
 8.**Reimport the new files into Neo4j** 
 Move the newly created files into Neo4j project directory and run
