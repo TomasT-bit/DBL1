@@ -36,13 +36,13 @@ This repository supports the analysis of comparision of airline support teams en
 # Clone the repository
 git clone https://github.com/yourname/yourproject.git
 cd yourproject
+mkdir data
 
 # Create a virtual environment
 python -m venv venv
 
 # Activate the virtual environment
 venv\Scripts\activate  # Windows
-# source venv/bin/activate  # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
