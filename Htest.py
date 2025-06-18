@@ -152,7 +152,7 @@ def visualize_kruskal(kruskal_df, df):
     plt.legend(title='Airline Group', loc='center left', bbox_to_anchor=(1, 0.5))
 
     plt.tight_layout()
-    plt.savefig(os.path.join(CONFIG["export_dir"], "Issues violin.png"))
+    plt.savefig(os.path.join(CONFIG["export_dir"], "Issues violin.pdf"))
     plt.show
     plt.close()
 

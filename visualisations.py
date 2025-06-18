@@ -90,7 +90,7 @@ def plot_sentiment_change_histogram(deltas, start_str, end_str):
     plt.xlabel("Sentiment Change (End - Start)")
     plt.ylabel("Number of Conversations")
     plt.tight_layout()
-    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_histogram_time_filtered.png"))
+    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_histogram_time_filtered.pdf"))
     
 
 
@@ -134,7 +134,7 @@ def plot_sentiment_direction_stacked(deltas_with_ids, aa_airline_id=22536055):
     ax.set_title("Positive vs Negative sentiment change")
     ax.legend(title="Sentiment Change")
     plt.tight_layout()
-    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_stacked_bar.png"))
+    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_stacked_bar.pdf"))
     
 
 
@@ -158,7 +158,7 @@ def plot_tweet_sentiment_histogram(sentiments, start_str, end_str):
     plt.ylabel("Tweet Count")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_distribution_chart.png"))
+    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_distribution_chart.pdf"))
 
 
 
