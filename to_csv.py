@@ -23,7 +23,7 @@ user_ids = set()
 tweet_ids = set()
 posted_edges = set()
 reply_edges = set()
-#screen_name_to_id = {}
+screen_name_to_id = {}
 lock = threading.Lock()
 
 def get_full_text(tweet):

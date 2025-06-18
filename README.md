@@ -98,7 +98,6 @@ dbms.memory.heap.max_size=4G
    python building_conversations.py
    ``` 
 6. **Run sentimnet on conversations**
-    Neo4j connection requiredAdd commentMore actions
     Change the path in the roberta_on_conv.py file to the csv contanining the conversations.
     Run the following script 
     ```bash
@@ -109,7 +108,7 @@ dbms.memory.heap.max_size=4G
     The script then adds two new attributes to the corresponding conversation, start_sentiment and end_sentiment
 
 7. **Clasify the type of issues in conversations** 
-    NEO4j connection requiredAdd commentMore actions
+    NEO4j connection required
     Change the path in the classifier.py file to the csv containing the conversations.
     Run the following script
     ```bash

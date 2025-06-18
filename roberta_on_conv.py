@@ -37,7 +37,7 @@ password = "password"
 driver = GraphDatabase.driver(uri, auth=(user, password), database="databaseconversation")
 
 print("Loading data from CSVs")
-csv_path = r"C:\Users\o0dan\OneDrive\Desktop\DBL data challanges\conversations_from_neo4j.csv"
+csv_path = r"import/conversationsj.csv"
 df = pd.read_csv(csv_path)
 
 #We only take the start and end of conversations
