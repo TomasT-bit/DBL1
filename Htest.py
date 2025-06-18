@@ -11,7 +11,7 @@ CONFIG = {
     "neo4j_uri": "bolt://localhost:7687",
     "neo4j_user": "neo4j",
     "neo4j_password": "password",
-    "neo4j_db": "twitterconversations",
+    "neo4j_db": "database1",
     "export_dir": "visualisations",
     "min_samples": 5,
     "airline_id": 22536055  # American Airlines

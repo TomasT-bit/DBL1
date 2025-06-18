@@ -6,7 +6,7 @@ from neo4j import GraphDatabase
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
-NEO4J_DB = "twitterconversations"
+NEO4J_DB = "database1"
 
 
 def convert_twitter_ts_vectorized(series):
@@ -17,7 +17,6 @@ def convert_twitter_ts_vectorized(series):
         if ts is None:
             return None
         # If already in ISO format, return as-is
-        if isinstance(ts, str) and ts[0:4].isdigit() and "T" in ts:
             return ts
         try:
             dt = datetime.strptime(ts, "%a %b %d %H:%M:%S %z %Y")
