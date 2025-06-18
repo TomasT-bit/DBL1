@@ -96,9 +96,6 @@ def classify_batch(batch):
         results = [results]
     return {"predicted_category": [r["labels"][0] for r in results]}
 
-print("Running zero-shot classification in batches")
-#classified = hf_dataset.map(classify_batch, batched=True, batch_size=16)
-#grouped_df["predicted_category"] = classified["predicted_category"]
 
 #Updating Neo4j with the new attributes
 def update_conversations_batch(tx, batch_data):
