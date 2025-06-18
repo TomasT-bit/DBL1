@@ -5,7 +5,8 @@ from tqdm import tqdm
 import torch
 
 
-CSV_FILE = r"C:\Users\o0dan\OneDrive\Desktop\DBL data challanges\conversations_from_neo4j.csv"
+CSV_FILE = r"import/conversations.csv"
+ 
 uri = "bolt://localhost:7687"  
 user = "neo4j"
 password = "password"
@@ -41,7 +42,7 @@ print(f"Total conversations to classify: {len(grouped)}")
 #Load zero-shot classifier
 
 device = 0 if torch.cuda.is_available() else -1
-print(f"🤖 Loading zero-shot classifier on device {device}...")
+print(f" Loading zero-shot classifier on device {device}...")
 zero_shot_classifier = pipeline(
     "zero-shot-classification",
     model="joeddav/xlm-roberta-large-xnli",

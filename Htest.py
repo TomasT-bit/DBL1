@@ -11,7 +11,7 @@ CONFIG = {
     "neo4j_uri": "bolt://localhost:7687",
     "neo4j_user": "neo4j",
     "neo4j_password": "password",
-    "neo4j_db": "database1",
+    "neo4j_db": "twitterconversations",
     "export_dir": "visualisations",
     "min_samples": 5,
     "airline_id": 22536055  # American Airlines
@@ -153,6 +153,7 @@ def visualize_kruskal(kruskal_df, df):
 
     plt.tight_layout()
     plt.savefig(os.path.join(CONFIG["export_dir"], "Issues violin.png"))
+    plt.show
     plt.close()
 
 

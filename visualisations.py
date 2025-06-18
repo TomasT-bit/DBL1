@@ -9,13 +9,13 @@ import Htest2
 
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
-NEO4J_PASSWORD = "password"             #Password
-NEO4J_DB = "database1"       #DB Name
+NEO4J_PASSWORD = "password"             
+NEO4J_DB = "twitterconversations"       
 EXPORT_DIR= "visualisations"
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 #Define time 
-START = "10/01/2000"  
+START = "01/01/2000"  
 END = "3/30/2020"    
 
 # Convert to ISO 8601 string format
@@ -25,6 +25,7 @@ end_dt = datetime.strptime(END, "%m/%d/%Y")
 #iso time, here you can adjust for hours too 
 iso_start = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 iso_end = end_dt.strftime("%Y-%m-%dT%H:%M:%SZ") 
+
 
 #Neo4j setup 
 driver = GraphDatabase.driver(
@@ -63,12 +64,6 @@ def fetch_tweet_sentiments_by_time(iso_start, iso_end):
 
 
 
-
-
-
-
-
-
 # Fetch sentiment deltas for conversations active in the time window
 def fetch_sentiment_deltas_by_time(iso_start, iso_end):
     query = """
@@ -85,15 +80,13 @@ def fetch_sentiment_deltas_by_time(iso_start, iso_end):
 
 
 
-# ----------------------
 # Plot histogram of sentiment changes 
-# ----------------------
 def plot_sentiment_change_histogram(deltas, start_str, end_str):
     df = pd.DataFrame({"Sentiment Change": deltas})
 
     plt.figure(figsize=(10, 6))
     sns.histplot(data=df, x="Sentiment Change", bins=30, color="skyblue")
-    plt.title(f"Histogram of Sentiment Change") #should add time to figure ? \n {start_str} and {end_str}) 
+    plt.title(f"Histogram of Sentiment Change") 
     plt.xlabel("Sentiment Change (End - Start)")
     plt.ylabel("Number of Conversations")
     plt.tight_layout()
@@ -197,14 +190,11 @@ if __name__ == "__main__":
     else:
         print("No data to plot sentiment direction by airline.")
 
-    
-    #driver.close()
     #Create Violin plots for AA vs others with Kruskal-Wallis
     Htest.main(iso_start,iso_end)
 
     #Run Kruskal-Wallis with post hoc don test 
     Htest2.main(iso_start, iso_end)
-
-
+    driver.close()
 
  
