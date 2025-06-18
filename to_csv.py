@@ -18,7 +18,7 @@ file_chunks = [files[i::NUM_PRODUCERS] for i in range(NUM_PRODUCERS)]
 data_queue = queue.Queue(maxsize=1000)  # buffer size, tune as needed
 stop_signal = object()  # special object to signal consumer to stop
 
-# Shared sets for deduplication - thread-safe with locks
+# Shared sets for deduplication
 user_ids = set()
 tweet_ids = set()
 posted_edges = set()
@@ -207,7 +207,6 @@ for i in range(NUM_PRODUCERS):
 consumer_thread = threading.Thread(target=consumer)
 consumer_thread.start()
 
-# Wait for producers to finish
 for t in producers:
     t.join()
 

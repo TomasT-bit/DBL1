@@ -14,30 +14,29 @@ NEO4J_DB = "twitterconversations"
 EXPORT_DIR= "visualisations"
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
-#Define time 
 START = "01/01/2000"  
 END = "3/30/2020"    
 
-# Convert to ISO 8601 string format
+# Convert to string
 start_dt = datetime.strptime(START, "%m/%d/%Y")
 end_dt = datetime.strptime(END, "%m/%d/%Y")
 
-#iso time, here you can adjust for hours too 
+# iso time
 iso_start = start_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 iso_end = end_dt.strftime("%Y-%m-%dT%H:%M:%SZ") 
 
 
-#Neo4j setup 
+# neo4j setup 
 driver = GraphDatabase.driver(
     NEO4J_URI,
     auth=(NEO4J_USER, NEO4J_PASSWORD),
     database=NEO4J_DB
 )
 
-#Create indexes inside neo4j for faster look up 
+# create indexes inside neo4j
 def create_indexes():
     indexes = [
-        # Conversation indexes
+        # conversation indexes
         "CREATE INDEX conversation_start_idx IF NOT EXISTS FOR (c:Conversation) ON (c.start)",
         "CREATE INDEX conversation_end_idx IF NOT EXISTS FOR (c:Conversation) ON (c.end)",
         "CREATE INDEX conversation_id_idx IF NOT EXISTS FOR (c:Conversation) ON (c.id)",
@@ -94,9 +93,7 @@ def plot_sentiment_change_histogram(deltas, start_str, end_str):
     
 
 
-# ---------------------
 # Stacked percentage barchart for sentiment change
-# ---------------------
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -140,9 +137,7 @@ def plot_sentiment_direction_stacked(deltas_with_ids, aa_airline_id=22536055):
 
    
 
-# ----------------------
 # Plot sentiment distrubution 
-# ----------------------
 def plot_tweet_sentiment_histogram(sentiments, start_str, end_str):
     df = pd.DataFrame({"sentiment_expected_value": sentiments})
     df["sentiment_expected_value"] = pd.to_numeric(df["sentiment_expected_value"], errors="coerce")
@@ -166,7 +161,7 @@ if __name__ == "__main__":
     
     create_indexes() #CREATE indecies
     
-    #Create Distribution of sentiment scores
+    # create cistribution of sentiment scores
     tweet_sentiments = fetch_tweet_sentiments_by_time(iso_start, iso_end)
     print(f"Fetched {len(tweet_sentiments)} tweet sentiment scores between {START} and {END}.")
     if tweet_sentiments:
@@ -174,7 +169,7 @@ if __name__ == "__main__":
     else:
         print("No tweets with sentiment scores in the given time frame.")
 
-    #Crete distribution of sentiment change 
+    # crete distribution of sentiment change 
     deltas = fetch_sentiment_deltas_by_time(iso_start, iso_end)
     print(f"Fetched {len(deltas)} sentiment delta values for conversations active between {START} and {END}.")
     if deltas:
@@ -182,7 +177,7 @@ if __name__ == "__main__":
     else:
         print("No conversations with sentiment deltas in the given time frame.")
 
-    #Create percentage chart for sentiment change    
+    # create percentage chart for sentiment change    
     deltas_with_ids = fetch_sentiment_deltas_by_time(iso_start, iso_end)
     print(f"Fetched {len(deltas_with_ids)} sentiment delta values with airline IDs.")
     if deltas_with_ids:
@@ -190,10 +185,10 @@ if __name__ == "__main__":
     else:
         print("No data to plot sentiment direction by airline.")
 
-    #Create Violin plots for AA vs others with Kruskal-Wallis
+    # create Violin plots for AA vs others with Kruskal-Wallis
     Htest.main(iso_start,iso_end)
 
-    #Run Kruskal-Wallis with post hoc don test 
+    # run Kruskal-Wallis
     Htest2.main(iso_start, iso_end)
     driver.close()
 

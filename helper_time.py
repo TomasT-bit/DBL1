@@ -2,12 +2,11 @@ import pandas as pd
 from datetime import datetime
 from neo4j import GraphDatabase
 
-# === Configuration ===
+# Configuration
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"
 NEO4J_DB = "database1"
-
 
 def convert_twitter_ts_vectorized(series):
     """
@@ -16,7 +15,7 @@ def convert_twitter_ts_vectorized(series):
     def parse(ts):
         if ts is None:
             return None
-        # If already in ISO format, return as-is
+        # If already in ISO format, return as is
             return ts
         try:
             dt = datetime.strptime(ts, "%a %b %d %H:%M:%S %z %Y")
@@ -26,6 +25,7 @@ def convert_twitter_ts_vectorized(series):
 
     return series.apply(parse)
 
+# Fetch tweetId and created_at
 def fetch_tweet_data(session):
     """
     Fetch tweet IDs and creation timestamps from Neo4j.
@@ -36,6 +36,7 @@ def fetch_tweet_data(session):
     """)
     return pd.DataFrame(result.data())
 
+# Update the Tweet nodes in Neo4j
 def update_tweet_timestamps(session, df, batch_size=500):
     """
     Update the `created_at` field on Tweet nodes in Neo4j with datetime objects.
@@ -51,6 +52,7 @@ def update_tweet_timestamps(session, df, batch_size=500):
             SET t.created_at = datetime(row.iso)
         """, {"batch": batch})
 
+# find the earliest and latest timestamp
 def set_conversation_bounds(session):
     """
     Set the start and end timestamp on each Conversation node based on its related Tweet nodes.

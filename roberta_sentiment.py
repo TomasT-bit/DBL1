@@ -2,19 +2,23 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch.nn.functional as F
 
+# Load pre-trained model and tokenizer from Hugging Face
 model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
+# Set device to GPU if available (otherwise use CPU)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model = model.to(device)
 model.eval()
 
+# Preprocessing tweets
 def preprocess(text):
     words = text.split(" ")
     words = ['@user' if w.startswith('@') else 'http' if w.startswith('http') else w for w in words]
     return " ".join(words)
 
+# Run sentiment analysis on a single tweet
 def get_sentiment(text):
     text = preprocess(text)
     encoded = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128).to(device)
@@ -26,6 +30,7 @@ def get_sentiment(text):
         label = max(prob_dict, key=prob_dict.get)
     return label, expected_value
 
+# Run sentiment analysis on a list of tweets
 def get_sentiment_batch(texts, batch_size=64):
     preprocessed = [preprocess(text) for text in texts]
     encoded = tokenizer(preprocessed, return_tensors="pt", truncation=True, padding=True, max_length=128).to(device)
