@@ -35,14 +35,14 @@ This repository supports the analysis of comparision of airline support teams en
 ```bash
 # Clone the repository
 git clone https://github.com/yourname/yourproject.git
-cd yourproject
+cd DBL1
 mkdir data
 
 # Create a virtual environment
 python -m venv venv
 
 # Activate the virtual environment
-venv\Scripts\activate  # Windows
+venv\Scripts\activate 
 
 # Install dependencies
 pip install -r requirements.txt
@@ -98,24 +98,10 @@ dbms.memory.heap.max_size=4G
    python building_conversations.py
    ``` 
 6. **Run sentimnet on conversations**
-    Neo4j connection required
-    Change the path in the roberta_on_conv.py file to the csv contanining the conversations.
-    Run the following script 
-    ```bash
-    python roberta_on_conv
-    ``` 
-    it takes a csv file that has all the unique conversations, the tweets can be connected to these conversations by one of 3 types of PART_OF relationship,
-    the ones with PART_OF = 1 are part of the start of the conversation while the ones with PART_OF = 2 are in the end of the conversation.
-    The script then adds two new attributes to the corresponding conversation, start_sentiment and end_sentiment
+    ????
+
 7. **Clasify the type of issues in conversations** 
-    NEO4j connection required
-    Change the path in the classifier.py file to the csv containing the conversations.
-    Run the following script
-    ```bash
-    python classifier.py
-    ``` 
-    The script takes all the tweets that are part of the start of the conversation, concatenates the text and then runs the pretrained model on the whole block of text, giving one top_label with a probability value
-    It then writes another attribute on the conversation nodes, top_label.
+    ???
 
 8.**Reimport the new files into Neo4j** 
 Move the newly created files into Neo4j project directory and run
@@ -132,7 +118,7 @@ PowerShell -File "<path-to-admin.ps1>" `
     --relationships="import\replies.csv" `
     --relationships="import\conversation_edges.csv"
 ```
-After create new databse inside the Neo4j project called twitterconversations
+After create new databse inside the Neo4j project called "twitterconversations" with passwrod "password"
 8.**Add start and end time to the conversations** 
  Run the following script 
    ```bash
@@ -173,10 +159,10 @@ After the model is done we can distribute the csv file among us and import it in
 |--------------------------|-----------------------------------------------------------------------------|
 | `to_csv.py`              | Converts raw Twitter JSON files into structured CSVs (`users`, `tweets`, `posted`, `replies`). |
 | `roberta_sentiment.py`   | Performs sentiment analysis on individual tweets using the RoBERTa model.   |
-| `building_conversations.py` | Constructs conversations by recursively linking replies and calculates sentiment shifts. |
-| `helper_time.py`         | Provides time-based utilities and functions to support temporal analysis.   |
+| `building_conversations.py` | Constructs conversations  through replies and calculates sentiment shifts. |
+| `helper_time.py`         | Gives additional field to the conversation that will be used for time selection   |
 | `roberta_on_conv.py`     | Runs sentiment analysis specifically on the start and end tweets of each conversation. |
-| `classifier.py`          | Classifies conversations based on predefined issue types (e.g., complaint, praise). |
+| `classifier.py`          | Classifies conversations based on predefined issue types |
 | `visualisations.py`      | Generates visual representations and plots of the analysis results.         |
-| `Htest.py`               | Experimental script for hypothesis testing and statistical analysis.        |
-| `Htest2.py`              | Extended or alternative version of `Htest.py` for validating insights.      |
+| `Htest.py`               | Statistical test for American air vs others per issue    |
+| `Htest2.py`              | Statistical test for American air issues   | 
