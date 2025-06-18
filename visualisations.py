@@ -10,12 +10,12 @@ import Htest2
 NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "password"             #Password
-NEO4J_DB = "twitterconversations"       #DB Name
+NEO4J_DB = "database1"       #DB Name
 EXPORT_DIR= "visualisations"
 os.makedirs(EXPORT_DIR, exist_ok=True)
 
 #Define time 
-START = "6/17/2000"  
+START = "10/01/2000"  
 END = "3/30/2020"    
 
 # Convert to ISO 8601 string format
@@ -72,14 +72,17 @@ def fetch_tweet_sentiments_by_time(iso_start, iso_end):
 # Fetch sentiment deltas for conversations active in the time window
 def fetch_sentiment_deltas_by_time(iso_start, iso_end):
     query = """
-    MATCH (c:Conversation)
-    WHERE c.start <= datetime($iso_end) AND c.end >= datetime($iso_start)
-      AND c.start_sentiment IS NOT NULL AND c.end_sentiment IS NOT NULL
-    RETURN toFloat(c.end_sentiment) - toFloat(c.start_sentiment) AS delta
-    """
+        MATCH (c:Conversation)
+        WHERE c.start <= datetime($iso_end) AND c.end >= datetime($iso_start)
+            AND c.start_sentiment IS NOT NULL AND c.end_sentiment IS NOT NULL
+            AND c.airlineId IS NOT NULL
+        RETURN toFloat(c.end_sentiment) - toFloat(c.start_sentiment) AS delta,
+            toInteger(c.airlineId) AS airlineId
+        """
     with driver.session() as session:
         result = session.run(query, {"iso_start": iso_start, "iso_end": iso_end})
-        return [record["delta"] for record in result if record["delta"] is not None]
+        return [(record["delta"], record["airlineId"]) for record in result if record["delta"] is not None]
+
 
 
 # ----------------------
@@ -95,8 +98,52 @@ def plot_sentiment_change_histogram(deltas, start_str, end_str):
     plt.ylabel("Number of Conversations")
     plt.tight_layout()
     plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_histogram_time_filtered.png"))
-    plt.show()
-    plt.clf()
+
+
+# ---------------------
+# Stacked percentage barchart for sentiment change
+# ---------------------
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+def plot_sentiment_direction_stacked(deltas_with_ids, aa_airline_id=22536055):
+    df = pd.DataFrame(deltas_with_ids, columns=["delta", "airlineId"])
+    df["Group"] = df["airlineId"].apply(lambda x: "American Airlines" if x == aa_airline_id else "Competition")
+    df["Sentiment Change"] = df["delta"].apply(lambda x: "Positive" if x >= 0 else "Negative")
+
+    summary = df.groupby(["Group", "Sentiment Change"]).size().unstack(fill_value=0)
+    percent_df = summary.div(summary.sum(axis=1), axis=0) * 100
+
+    ax = percent_df.plot(
+        kind="bar",
+        stacked=True,
+        color=["#0078D2", "#DA1A32"],
+        figsize=(8, 6),
+        rot=0
+    )
+
+    # Add percentage labels
+    for i, group in enumerate(percent_df.index):
+        cumulative = 0
+        for sentiment in percent_df.columns:
+            value = percent_df.loc[group, sentiment]
+            if value > 0:
+                ax.text(
+                    i, cumulative + value / 2,
+                    f"{value:.1f}%",
+                    ha="center", va="center", color="white", fontsize=10, fontweight="bold"
+                )
+                cumulative += value
+
+    ax.set_ylabel("Percentage of Conversations")
+    ax.set_title("Positive vs Negative sentiment change")
+    ax.legend(title="Sentiment Change")
+    plt.tight_layout()
+    plt.savefig(os.path.join(EXPORT_DIR, "sentiment_change_stacked_bar.png"))
+
+
+   
 
 # ----------------------
 # Plot sentiment distrubution 
@@ -135,9 +182,18 @@ if __name__ == "__main__":
     deltas = fetch_sentiment_deltas_by_time(iso_start, iso_end)
     print(f"Fetched {len(deltas)} sentiment delta values for conversations active between {START} and {END}.")
     if deltas:
-        plot_sentiment_change_histogram(deltas, START, END)
+        plot_sentiment_change_histogram([d[0] for d in deltas], START, END)
     else:
         print("No conversations with sentiment deltas in the given time frame.")
+
+    #Create percentage chart for sentiment change    
+    deltas_with_ids = fetch_sentiment_deltas_by_time(iso_start, iso_end)
+    print(f"Fetched {len(deltas_with_ids)} sentiment delta values with airline IDs.")
+    if deltas_with_ids:
+        plot_sentiment_direction_stacked(deltas_with_ids, aa_airline_id=22536055)
+    else:
+        print("No data to plot sentiment direction by airline.")
+
     
     #driver.close()
     #Create Violin plots for AA vs others with Kruskal-Wallis
